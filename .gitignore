@@ -1,0 +1,29 @@
+# Environment files
+.env
+.env.*
+.env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+
+# Dependencies and Build
+node_modules/
+dist/
+build/
+
+# IDEs and Editors
+.vscode/
+.DS_Store
+
+# Logs and Cache
+*.log
+*.cache
+
+# Databases
+*.sqlite
+*.db
+*.db-journal
