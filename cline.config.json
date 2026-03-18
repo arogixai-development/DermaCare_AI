@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "model": {
+    "provider": "ollama",
+    "model": "phi3:mini",
+    "baseUrl": "http://localhost:11434",
+    "options": {
+      "temperature": 0.2,
+      "num_predict": 150,
+      "top_p": 0.9,
+      "num_ctx": 2048
+    }
+  },
+  "project": {
+    "root": ".",
+    "include": [
+      "**/*.py",
+      "**/*.js", 
+      "**/*.html",
+      "**/*.css",
+      "**/*.json",
+      "**/*.md",
+      "**/*.txt",
+      "**/*.env.example"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/venv/**",
+      "**/.git/**",
+      "**/.vscode/**",
+      "**/.aider/**",
+      "**/*.log",
+      "**/*.tmp",
+      "**/dist/**",
+      "**/build/**"
+    ]
+  },
+  "security": {
+    "protectedFiles": [
+      ".env",
+      ".env.local", 
+      ".env.production",
+      "secrets.json",
+      "credentials.json",
+      "**/private/**",
+      "**/secrets/**"
+    ],
+    "allowFileAccess": true,
+    "allowProjectAccess": true
+  },
+  "features": {
+    "multiFileChanges": true,
+    "contextAwareness": true,
+    "codeAnalysis": true,
+    "performanceOptimization": true
+  }
+}

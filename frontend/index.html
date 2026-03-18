@@ -60,7 +60,7 @@
                    <h3 style="margin: 0; font-weight: 600;">Clinical Workspace</h3>
                 </div>
                 <div style="display: flex; gap: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                    <span>Status: 🟢 Online (Local)</span>
+                    <span id="network-status">Status: 🟢 Online (Local)</span>
                     <span id="header-date"></span>
                 </div>
             </header>
@@ -210,6 +210,12 @@
                   <div class="clinical-alert alert-warning">
                     <strong>⚠️ Clinical Safety Notice</strong>
                     <span>Results are AI-generated suggestions for decision support only. Confirm with clinical findings before treatment.</span>
+                  </div>
+
+                  <!-- Triage Alert Box -->
+                  <div id="triage-alert" class="clinical-alert" style="display: none;">
+                    <strong>🚩 Triage Recommendation</strong>
+                    <span id="triage-text"></span>
                   </div>
 
                   <div id="diagnosis-structured">

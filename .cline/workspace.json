@@ -1,0 +1,31 @@
+{
+  "workspace": {
+    "name": "Dermacare AI",
+    "description": "Offline dermatology clinical decision support system",
+    "version": "1.0.0",
+    "rootPath": ".",
+    "allowedPaths": [
+      "backend/",
+      "frontend/",
+      "requirements.txt",
+      "README.md",
+      ".env.example"
+    ],
+    "protectedPaths": [
+      ".env",
+      ".env.local",
+      ".env.production"
+    ]
+  },
+  "ollama": {
+    "enabled": true,
+    "host": "http://localhost:11434",
+    "model": "phi3:mini",
+    "autoStart": false
+  },
+  "security": {
+    "fileAccess": "read-write",
+    "projectAccess": "full",
+    "sensitiveFileProtection": true
+  }
+}

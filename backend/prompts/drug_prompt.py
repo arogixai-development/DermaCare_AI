@@ -1,27 +1,25 @@
 def build_drug_prompt(drugs: list) -> str:
+    """
+    Builds a strict JSON-only prompt for drug interaction analysis.
+    Forces the LLM to return a parseable JSON object every time.
+    """
     drugs_str = ", ".join(drugs)
-    prompt = f"""
-You are a senior clinical pharmacologist. Analyze the potential drug-drug interactions for the following list of medications, specifically focusing on dermatology-related treatments where applicable.
 
-Medications: {drugs_str}
+    prompt = f"""You are a senior clinical pharmacologist. You MUST respond with ONLY a valid JSON object.
+STRICT RULES:
+- Output ONLY the JSON object, nothing else.
+- Do NOT include markdown, code fences, explanations, or any text outside the JSON.
+- All JSON keys and string values must use double quotes.
+- Every required key must be present.
 
-Please provide the analysis in the following structured format:
+Medications to analyse: {drugs_str}
 
-#### Summary
-A brief overview of the interaction profile.
-
-#### Major Interactions
-List high-severity interactions that require immediate clinical attention or contraindication.
-
-#### Moderate/Minor Interactions
-List interactions that may require dosage adjustment or monitoring.
-
-#### Clinical Recommendation
-Suggested actions for the healthcare provider (e.g., alternative medications, timing adjustments).
-
-#### Patient Education
-Key points to communicate to the patient regarding these medications.
-
-Use clear, professional medical language. If no significant interactions are found, explicitly state that the combination appears safe but should still be monitored.
-"""
+Output this EXACT JSON structure (replace placeholder values with real clinical content):
+{{
+  "summary": "Brief overview of the overall interaction profile for these medications.",
+  "major_interactions": ["High-severity interaction requiring immediate attention or contraindication, or 'None identified'"],
+  "moderate_minor_interactions": ["Moderate/minor interaction requiring monitoring or dose adjustment, or 'None identified'"],
+  "clinical_recommendation": "Specific actions for the healthcare provider regarding this combination.",
+  "patient_education": "Key points the patient must know about taking these medications together."
+}}"""
     return prompt.strip()

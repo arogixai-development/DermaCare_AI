@@ -27,6 +27,43 @@ class AppController {
 
     // Initialize metrics on load
     this.updateDashboardMetrics();
+    this.initNetworkMonitoring();
+  }
+
+  initNetworkMonitoring() {
+    const el = document.getElementById('network-status');
+    const updateStatus = async () => {
+      if (!el) return;
+      
+      // First check navigator.onLine for browser connectivity
+      if (!navigator.onLine) {
+        el.innerHTML = 'Status: 🔴 Network Offline';
+        el.style.color = 'var(--error-text)';
+        return;
+      }
+      
+      // Then check backend reachability
+      try {
+        const hostname = window.location.hostname || "127.0.0.1";
+        const ping = await fetch(`http://${hostname}:8000/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
+        if (ping.ok) {
+          el.innerHTML = 'Status: 🟢 Online (AI Ready)';
+          el.style.color = '';
+        } else {
+          throw new Error('Backend error');
+        }
+      } catch (err) {
+        el.innerHTML = 'Status: 🟠 AI Backend Offline';
+        el.style.color = '#f59e0b';
+      }
+    };
+    
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    
+    // Heartbeat every 10 seconds
+    setInterval(updateStatus, 10000);
+    updateStatus();
   }
 
   // --- HTML DOM Navigation (Core Logic) ---
@@ -110,10 +147,10 @@ class AppController {
     // Fill Step 2: Assessment
     this.showScreen('screen-assessment');
     await new Promise(r => setTimeout(r, 600));
-    document.getElementById('complaint').value = "Red itchy rash on forearm";
-    document.getElementById('lesion').value = "Localized red plaque, 3cm, circular, located on left forearm.";
-    document.getElementById('symptoms').value = "Severe pruritus (itching), no bleeding, duration 5 days.";
-    document.getElementById('tests').value = "No prior clinical tests performed.";
+    document.getElementById('complaint').value = "Chronic scaling plaque on elbows";
+    document.getElementById('lesion').value = "Symmetrical erythematous plaques with silvery scales, sharply demarcated, 5cm diameters.";
+    document.getElementById('symptoms').value = "Mild itch, Auspitz sign positive when scales removed.";
+    document.getElementById('tests').value = "Dermoscopy shows uniform red dots (tortuous capillaries).";
 
     // Trigger AI
     await new Promise(r => setTimeout(r, 800));
@@ -174,6 +211,7 @@ class AppController {
   // --- HTML Sanitizer ---
   sanitizeEscape(str) {
       if (!str) return "";
+      if (typeof str !== 'string') str = String(str);
       return str.replace(/[&<>"']/g, function(m) {
           switch (m) {
               case '&': return '&amp;';
@@ -233,8 +271,13 @@ class AppController {
   async analyzeCase() {
     if (!this.validateInputs(['complaint'])) return;
 
+    // Preserve existing ID or other metadata if present
+    const existingData = this.currentCasePayload || {};
+    
     this.currentCasePayload = {
-      context: "rural clinic",
+      ...existingData,
+      case_id: existingData.case_id || 'case_' + Date.now(),
+      timestamp: existingData.timestamp || new Date().toISOString(),
       patient_age: parseInt(document.getElementById('patient_age').value),
       geographic_region: document.getElementById('geographic_region').value,
       skin_phototype: document.getElementById('skin_phototype').value || "UNKNOWN",
@@ -268,11 +311,10 @@ class AppController {
         progressBar.style.width = statusMessages[messageIndex].progress + '%';
         messageIndex++;
       }
-    }, 3000);
+    }, 2000);
 
-    const timeoutDuration = 300000;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
 
     try {
       const hostname = window.location.hostname || "127.0.0.1";
@@ -285,155 +327,113 @@ class AppController {
         signal: controller.signal
       });
       
-      clearInterval(intervalId);
-      progressBar.style.width = '100%';
-      statusText.innerText = "Analysis Complete!";
-      
-      clearTimeout(timeoutId);
-
-      // Handle FastAPI Validation error beautifully
-      if (res.status === 422) {
-         throw new Error("Validation Error: Please check your inputs and try again.");
+      if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.detail || `Server error: ${res.status}`);
       }
-      if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
 
       const data = await res.json();
-      this.rawAIResponse = data.analysis;
-
-      // Handle empty AI hallucinations gracefully
-      if (!this.rawAIResponse || this.rawAIResponse.length < 15) {
-         throw new Error("AI could not generate a reliable analysis. Please review the clinical inputs and try again.");
-      }
-
-      this.currentCasePayload.ai_diagnosis = this.rawAIResponse;
+      
+      // Map the new structured JSON fields to our state
+      // Expected fields: { diagnoses: [], reasoning: "", soap: "", triage: "" }
+      this.currentCasePayload.diagnoses_list = data.diagnoses || [];
+      this.currentCasePayload.reasoning = data.reasoning || "";
+      this.currentCasePayload.soap_note = data.soap || "";
+      this.currentCasePayload.triage = data.triage || "Routine";
+      this.currentCasePayload.tests_list = data.tests || [];
+      this.currentCasePayload.referral_list = data.referral || [];
+      this.currentCasePayload.treatment_list = data.treatment || [];
+      
       this.currentCasePayload.status = "completed";
 
-      // Inject explicitly Structured HTML
-      this.parseAIResponse(this.rawAIResponse);
+      // Display the results
+      this.parseAIResponse(data);
       this.showScreen('screen-diagnosis');
 
     } catch (error) {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
+      console.error("Analysis Failed:", error);
+      
       let errorMsg = error.message;
+      if (error.name === 'AbortError') errorMsg = "AI processing timed out. Please retry.";
 
-      // Detect if the AbortController killed the request meaning model timed out
-      if (error.name === 'AbortError') {
-          errorMsg = "AI processing took too long. Please retry.";
-      }
-
-      console.warn("Analysis Failed:", error);
+      // Show error in the UI with a Retry button
+      const resultDiv = document.getElementById('diagnosis-result');
+      resultDiv.innerHTML = `
+        <div class="clinical-alert alert-danger" style="background:var(--error-bg); color:var(--error-text); padding:1rem; border-radius:8px;">
+            <p><strong>⚠️ Analysis Failed</strong></p>
+            <p>${this.sanitizeEscape(errorMsg)}</p>
+            <button onclick="window.app.analyzeCase()" class="btn btn-primary btn-small" style="margin-top:1rem; background:var(--error-text);">Retry Analysis</button>
+        </div>
+      `;
       
       document.getElementById('diagnosis-fallback').style.display = 'block';
       document.getElementById('diagnosis-structured').style.display = 'none';
-      document.getElementById('diagnosis-result').innerHTML = `<p style="color:var(--error);">${this.sanitizeEscape(errorMsg)}</p>`;
-      document.getElementById('treatment-result').innerHTML = "<p>N/A - Offline / Failed</p>";
       
       this.currentCasePayload.status = "pending";
-      this.currentCasePayload.ai_diagnosis = "Error: " + errorMsg;
-      this.currentCasePayload.raw_ai_response = "Error: " + errorMsg;
-      
-      // Navigate to show the error but allow going back to assessment
       this.showScreen('screen-diagnosis');
       
     } finally {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
       btn.disabled = false;
       loading.style.display = 'none';
       
       if (this.currentCasePayload) {
-         // Auto save full payload + results immediately
          await saveCase(this.currentCasePayload);
       }
     }
   }
 
-  // Splits AI text by headers and parses it into Structured DOM
-  parseAIResponse(text) {
-    const textLower = text.toLowerCase();
-    this.currentCasePayload.raw_ai_response = text;
+  parseAIResponse(data) {
+    if (!data || typeof data !== 'object') return;
+
+    // Use direct JSON mapping instead of text parsing
+    const diagnoses = Array.isArray(data.diagnoses) ? data.diagnoses.join('\n') : "";
+    const reasoning = data.reasoning || "";
+    const tests = Array.isArray(data.tests) ? data.tests.join('\n') : "";
+    const referral = Array.isArray(data.referral) ? data.referral.join('\n') : "";
+    const treatment = Array.isArray(data.treatment) ? data.treatment.join('\n') : "";
+    const triageValue = (data.triage || "Routine").toLowerCase();
+
+    // Map to UI boxes using formatStructuredHTML
+    document.getElementById('box-diagnoses').innerHTML = this.formatStructuredHTML(diagnoses || "None specified");
+    document.getElementById('box-reasoning').innerHTML = this.formatStructuredHTML(reasoning || "None specified");
+    document.getElementById('box-tests').innerHTML = this.formatStructuredHTML(tests || "None specified");
+    document.getElementById('box-referral').innerHTML = this.formatStructuredHTML(referral || "None specified");
     
-    // Check if expected structured headers actually exist in payload
-    const hasStructured = textLower.includes('possible diagnoses') || 
-                          textLower.includes('clinical reasoning') || 
-                          textLower.includes('recommended tests') || 
-                          textLower.includes('referral advice');
-                          
-    if (!hasStructured) {
-      document.getElementById('diagnosis-fallback').style.display = 'block';
-      document.getElementById('diagnosis-structured').style.display = 'none';
-      document.getElementById('diagnosis-result').innerHTML = `<pre>${this.sanitizeEscape(text)}</pre>`;
-      
-      const treatIdx = textLower.indexOf('treatment suggestions');
-      if (treatIdx !== -1) {
-         let endIdx = text.length;
-         const noteIdx = textLower.indexOf('important notice');
-         if (noteIdx !== -1) endIdx = noteIdx;
-         document.getElementById('treatment-result').innerHTML = this.formatStructuredHTML(text.substring(treatIdx, endIdx).trim());
-      } else {
-         document.getElementById('treatment-result').innerHTML = "<p>Review diagnosis text.</p>";
-      }
-      return;
+    // Update Treatment result
+    document.getElementById('treatment-result').innerHTML = this.formatStructuredHTML(treatment || "No treatment suggestions available.");
+
+    // Update SOAP result for immediate visibility
+    const soapResult = document.getElementById('soap-result');
+    if (soapResult && data.soap) {
+        soapResult.innerHTML = this.formatStructuredHTML(data.soap);
     }
+
+    // Handle Triage Alert Display
+    const triageBox = document.getElementById('triage-alert');
+    const triageText = document.getElementById('triage-text');
     
-    // Valid format detected!
+    if (triageBox && triageText) {
+        triageBox.style.display = 'flex';
+        triageText.innerText = data.triage;
+        
+        // Fitzpatrick-aware styling (simplified logic for example)
+        triageBox.className = 'clinical-alert'; // reset
+        if (triageValue.includes('urgent') || triageValue.includes('high')) {
+            triageBox.classList.add('alert-danger');
+            triageBox.style.background = '#fee2e2';
+            triageBox.style.color = '#b91c1c';
+            triageBox.style.borderLeft = '4px solid #ef4444';
+        } else if (triageValue.includes('moderate') || triageValue.includes('medium')) {
+            triageBox.classList.add('alert-warning');
+        } else {
+            triageBox.classList.add('alert-info');
+        }
+    }
+
     document.getElementById('diagnosis-fallback').style.display = 'none';
     document.getElementById('diagnosis-structured').style.display = 'block';
-
-    const extractSection = (str, startMarker, nextMarkers) => {
-        const lowerStr = str.toLowerCase();
-        const startIdx = lowerStr.indexOf(startMarker.toLowerCase());
-        if (startIdx === -1) return null;
-        
-        // Find exact start of inner content gracefully handling colons, bolding (**), and carriage returns
-        let actualStartIdx = startIdx + startMarker.length;
-        while(actualStartIdx < str.length && (str[actualStartIdx] === ':' || str[actualStartIdx] === ' ' || str[actualStartIdx] === '\n' || str[actualStartIdx] === '\r' || str[actualStartIdx] === '*')) {
-             actualStartIdx++;
-        }
-
-        let endIdx = str.length;
-        for (const marker of nextMarkers) {
-            const mIdx = lowerStr.indexOf(marker.toLowerCase(), actualStartIdx);
-            if (mIdx !== -1 && mIdx < endIdx) {
-                endIdx = mIdx;
-            }
-        }
-        
-        let content = str.substring(actualStartIdx, endIdx).trim();
-        
-        // Post-processing: remove trailing noise markers (like bolding stars from the NEXT section header)
-        while (content.endsWith('*') || content.endsWith(':') || content.endsWith(' ') || content.endsWith('\n') || content.endsWith('\r')) {
-            content = content.substring(0, content.length - 1).trim();
-        }
-        
-        return content;
-    };
-
-    // The universe of valid target markers blocking each section from bleeding into the next
-    const allMarkers = [
-        'possible diagnoses', 'clinical reasoning', 'recommended tests', 
-        'treatment suggestions', 'referral advice', 'important notice'
-    ];
-
-    const diagnoses = extractSection(text, 'possible diagnoses', allMarkers);
-    const reasoning = extractSection(text, 'clinical reasoning', allMarkers);
-    const tests = extractSection(text, 'recommended tests', allMarkers);
-    const referral = extractSection(text, 'referral advice', allMarkers);
-    const treatment = extractSection(text, 'treatment suggestions', allMarkers);
-
-    // Save strictly structured sections to our permanent IndexedDB Payload Memory
-    this.currentCasePayload.diagnoses = diagnoses || "None specified by AI";
-    this.currentCasePayload.reasoning = reasoning || "None specified by AI";
-    this.currentCasePayload.tests = tests || "None specified by AI";
-    this.currentCasePayload.referral = referral || "None specified by AI";
-    this.currentCasePayload.treatment = treatment || "None specified by AI";
-
-    // Inject beautifully formatted rich-text DOM updates
-    document.getElementById('box-diagnoses').innerHTML = this.formatStructuredHTML(this.currentCasePayload.diagnoses);
-    document.getElementById('box-reasoning').innerHTML = this.formatStructuredHTML(this.currentCasePayload.reasoning);
-    document.getElementById('box-tests').innerHTML = this.formatStructuredHTML(this.currentCasePayload.tests);
-    document.getElementById('box-referral').innerHTML = this.formatStructuredHTML(this.currentCasePayload.referral);
-    
-    document.getElementById('treatment-result').innerHTML = this.formatStructuredHTML(treatment || "Review diagnosis tab for context.");
   }
 
   // --- Data & State Management ---
@@ -450,7 +450,13 @@ class AppController {
     const loading = document.getElementById('soap-loading');
     const resultBox = document.getElementById('soap-result');
     
-    if (!this.rawAIResponse && !this.currentCasePayload) {
+    // If we already have a SOAP note from the initial diagnosis call, use it
+    if (this.currentCasePayload && this.currentCasePayload.soap_note) {
+      resultBox.innerHTML = this.formatStructuredHTML(this.currentCasePayload.soap_note);
+      return;
+    }
+
+    if (!this.currentCasePayload) {
       resultBox.innerHTML = "<p>No case data found to generate SOAP note.</p>";
       return;
     }
@@ -465,13 +471,10 @@ class AppController {
       // Construct a full clinical context for the SOAP generator
       const p = this.currentCasePayload;
       const caseContext = `
-PATIENT: Age ${p.patient_age}, ${p.geographic_region}, ${p.skin_phototype}
-COMPLAINT: ${p.complaint}
-LESION: ${p.lesion}
+CHIEF COMPLAINT: ${p.complaint}
+PHYSICAL EXAM/LESION: ${p.lesion}
 SYMPTOMS: ${p.symptoms}
 TESTS: ${p.tests}
-AI ANALYSIS:
-${this.rawAIResponse}
       `.trim();
 
       const res = await fetch(apiEndpoint, {
@@ -811,17 +814,23 @@ ${this.rawAIResponse}
     }
 
     // Treatment
-    const treatmentText = caseData.raw_ai_response || caseData.ai_diagnosis;
-    const treatIdx = treatmentText ? treatmentText.toLowerCase().indexOf('treatment suggestions') : -1;
-    
-    if (treatIdx !== -1) {
+    const treatmentList = caseData.treatment_list || [];
+    if (treatmentList.length > 0) {
         document.getElementById('details-treatment-box').style.display = 'block';
-        let endIdx = treatmentText.length;
-        const noteIdx = treatmentText.toLowerCase().indexOf('important notice');
-        if (noteIdx !== -1) endIdx = noteIdx;
-        document.getElementById('details-treatment').innerHTML = this.formatStructuredHTML(treatmentText.substring(treatIdx, endIdx).trim());
+        document.getElementById('details-treatment').innerHTML = this.formatStructuredHTML(treatmentList.join('\n'));
     } else {
-        document.getElementById('details-treatment-box').style.display = 'none';
+        // Fallback for older cases using raw text
+        const treatmentText = caseData.raw_ai_response || caseData.ai_diagnosis || "";
+        const treatIdx = treatmentText.toLowerCase().indexOf('treatment suggestions');
+        if (treatIdx !== -1) {
+            document.getElementById('details-treatment-box').style.display = 'block';
+            let endIdx = treatmentText.length;
+            const noteIdx = treatmentText.toLowerCase().indexOf('important notice');
+            if (noteIdx !== -1) endIdx = noteIdx;
+            document.getElementById('details-treatment').innerHTML = this.formatStructuredHTML(treatmentText.substring(treatIdx, endIdx).trim());
+        } else {
+            document.getElementById('details-treatment-box').style.display = 'none';
+        }
     }
 
     // Pending Re-run capability
@@ -957,6 +966,8 @@ GENERATED BY DERMACARE AI
     }
   }
 
+
 }
 
-window.app = new AppController();
+// Initialize safely to preserve state during navigation in SPA
+window.app = window.app || new AppController();

@@ -28,3 +28,4 @@ build/
 *.sqlite
 *.db
 *.db-journal
+.aider*

@@ -1,43 +1,53 @@
-def build_diagnosis_prompt(data: dict) -> str:
+def build_diagnosis_prompt_optimized(data: dict) -> str:
     """
-    Constructs a highly clinical, structured prompt for dermatology AI analysis.
-    The response MUST contain specific headers for the frontend to parse.
+    State-of-the-art Clinical Prompt for Llama 3 (8B).
+    Demands exhaustive pathophysiological depth, detailed morphological analysis,
+    and a comprehensive, professional clinical record.
     """
-    prompt = f"""
-You are an expert dermatologist specializing in clinical decision support for low-resource environments.
-Analyze the following patient case and provider findings to provide a structured diagnosis and management plan.
+    age       = data.get('patient_age', 'Unknown')
+    region    = data.get('geographic_region', 'Unknown')
+    complaint = data.get('complaint', 'None')
+    lesion    = data.get('lesion', 'None specified')
+    symptoms  = data.get('symptoms', 'None reported')
+    tests     = data.get('tests', 'None provided')
 
-PATIENT DEMOGRAPHICS:
-- Age: {data.get('patient_age', 'Unknown')}
-- Geographic Region: {data.get('geographic_region', 'Unknown')}
-- Skin Phototype (Fitzpatrick): {data.get('skin_phototype', 'Unknown')}
-- Occupation: {data.get('occupation', 'Unknown')}
+    prompt = f"""You are a Senior Dermatologist and Clinical Diagnostician at a world-class institution. 
+Analyze this clinical case with exhaustive precision and professional depth.
 
-CLINICAL FINDINGS:
-- Primary Complaint: {data.get('complaint', 'None provided')}
-- Lesion Description: {data.get('lesion', 'None provided')}
-- Associated Symptoms: {data.get('symptoms', 'None provided')}
-- Available Test Results: {data.get('tests', 'None provided')}
+### PATIENT PRESENTATION:
+- Age: {age}
+- Region: {region}
+- Chief Complaint: {complaint}
+- Physical Morphology: {lesion}
+- Associated Symptoms: {symptoms}
+- Relevant History/Tests: {tests}
 
-Based on the above information, generate a professional clinical analysis.
-Your response MUST be organized into these EXACT sections:
+### MANDATORY CLINICAL REQUIREMENTS:
+1. **Possible Diagnoses**: Provide a clear list of differential diagnoses.
+2. **Pathophysiological Reasoning**: Write a detailed, technical paragraph explaining the clinical morphology. 
+   - Discuss why the specific findings (e.g., scale type, distribution, Auspitz sign, capillary tortuosity) lead to the diagnosis.
+   - Mention relevant pathophysiological mechanisms (e.g., epidermal turnover, inflammatory pathways).
+3. **Professional SOAP Note**: Provide a exhaustive, continuous string.
+   - SUBJECTIVE: Comprehensive patient history, onset, and aggravating/relieving factors.
+   - OBJECTIVE: Descriptive dermatological morphology using professional standard terminology.
+   - ASSESSMENT: Synthesize findings into a definitive clinical working diagnosis.
+   - PLAN: Provide a tiered management strategy including topical therapies, systemic options if indicated, specific diagnostic follow-up, and detailed patient counseling.
+4. **Patient-Facing Management**: Provide clear, step-by-step instructions for the patient to follow (e.g., application frequency, skin care behavior).
 
-POSSIBLE DIAGNOSES:
-(List 2-4 differential diagnoses, starting with the most likely. Include ICD-10 codes if possible.)
-
-CLINICAL REASONING:
-(Explain the logic behind the differentials, citing specific symptoms or findings.)
-
-RECOMMENDED TESTS:
-(Suggest low-cost or high-yield diagnostic tests relevant to this case.)
-
-TREATMENT SUGGESTIONS:
-(Provide evidence-based management options, emphasizing both pharmacologic and non-pharmacologic interventions.)
-
-REFERRAL ADVICE:
-(Clearly state if and why a referral to a higher-level center or specialist is needed.)
-
-IMPORTANT NOTICE:
-This is an AI-generated clinical support analysis and should be verified by a licensed healthcare professional before any treatment is initiated.
-"""
+### OUTPUT FORMAT:
+You MUST respond with ONLY a valid JSON object. No explanations, markdown tags, or prose outside the JSON.
+{{
+  "diagnoses": ["Most likely Dx", "Differential 1", "Differential 2"],
+  "reasoning": "A highly detailed, MULTI-PARAGRAPH technical explanation of the clinical findings, morphological analysis, and diagnostic logic.",
+  "soap": "SUBJECTIVE: ...\\nOBJECTIVE: ...\\nASSESSMENT: ...\\nPLAN: ...",
+  "triage": "Urgent/Moderate/Routine",
+  "tests": ["Detailed follow-up test 1", "Diagnostic step 2"],
+  "referral": ["Specific specialist guidance"],
+  "treatment": ["Medication 1: dosage/frequency", "Step 2: Skin care regimen", "Step 3: Patient education point"]
+}}"""
     return prompt
+
+
+def build_diagnosis_prompt(data: dict) -> str:
+    """Legacy function - now uses optimized version"""
+    return build_diagnosis_prompt_optimized(data)
