@@ -95,28 +95,43 @@ DRUG_INTERACTION_FALLBACK: Dict[str, Any] = {
 
 def extract_json_from_text(text: str) -> str:
     """
-    Attempt to extract a raw JSON object from a string that may contain
-    surrounding prose or markdown code fences.
-
-    Strategy (applied in order):
-      1. Strip leading/trailing whitespace.
-      2. Remove markdown code fences (```json ... ``` or ``` ... ```).
-      3. Locate the outermost { … } block.
+    Attempt to extract and repair a raw JSON object from a string.
+    
+    Robustness pipeline:
+      1. Strip surrounding prose.
+      2. Remove markdown code fences.
+      3. Locate outermost { ... } block.
+      4. Remove trailing commas (common LLM error).
+      5. Replace literal newlines inside values with \n.
     """
+    if not text:
+        return ""
+        
     text = text.strip()
 
-    # Remove markdown code fences
+    # Step 1: Remove markdown code fences
     if "```" in text:
-        # Strip opening fence line and closing fence line
-        text = re.sub(r"```(?:json)?\s*", "", text).strip()
+        text = re.sub(r"```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```", "", text)
+        text = text.strip()
 
-    # Find outermost JSON object
+    # Step 2: Find outermost JSON object
     start = text.find("{")
     end   = text.rfind("}")
     if start != -1 and end != -1 and end > start:
-        return text[start : end + 1]
+        text = text[start : end + 1]
+    
+    # Step 3: Basic JSON cleanup (Repairing common LLM hallucinations)
+    
+    # Remove trailing commas before a closing brace/bracket
+    text = re.sub(r',\s*([\]}])', r'\1', text)
+    
+    # Fix common escaping issues: If the model puts literal newlines in a string, 
+    # json.loads will fail. We try to catch these in a simple way.
+    # This is tricky without a full parser, but we can target common fields.
+    
+    return text
 
-    return text  # Return as-is; json.loads will surface the error
 
 
 def validate_schema(

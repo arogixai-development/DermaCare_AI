@@ -45,7 +45,7 @@ class AppController {
       // Then check backend reachability
       try {
         const hostname = window.location.hostname || "127.0.0.1";
-        const ping = await fetch(`http://${hostname}:8000/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
+        const ping = await fetch(`http://${hostname}:8002/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
         if (ping.ok) {
           el.innerHTML = 'Status: 🟢 Online (AI Ready)';
           el.style.color = '';
@@ -318,7 +318,7 @@ class AppController {
 
     try {
       const hostname = window.location.hostname || "127.0.0.1";
-      const apiEndpoint = `http://${hostname}:8000/diagnosis`;
+      const apiEndpoint = `http://${hostname}:8002/diagnosis`;
 
       const res = await fetch(apiEndpoint, {
         method: "POST",
@@ -466,7 +466,7 @@ class AppController {
 
     try {
       const hostname = window.location.hostname || "127.0.0.1";
-      const apiEndpoint = `http://${hostname}:8000/soap`;
+      const apiEndpoint = `http://${hostname}:8002/soap`;
 
       // Construct a full clinical context for the SOAP generator
       const p = this.currentCasePayload;
@@ -608,7 +608,7 @@ TESTS: ${p.tests}
 
     try {
       const hostname = window.location.hostname || "127.0.0.1";
-      const apiEndpoint = `http://${hostname}:8000/check-interactions`;
+      const apiEndpoint = `http://${hostname}:8002/check-interactions`;
 
       const res = await fetch(apiEndpoint, {
         method: "POST",

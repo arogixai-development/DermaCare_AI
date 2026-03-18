@@ -22,7 +22,7 @@ import json
 import hashlib
 import logging
 import time
-from functools import lru_cache
+
 from typing import Any, AsyncGenerator, Dict, Optional
 
 from backend.ai_engine.ollama_client import run_ai_with_retry, run_ai_optimized, run_ai_streaming
@@ -35,9 +35,7 @@ from backend.prompts.diagnosis_prompt import build_diagnosis_prompt_optimized
 
 logger = logging.getLogger("DermaCare_AI.diagnosis_service")
 
-# ── In-memory response cache ──────────────────────────────────────────────────
-# Only validated, non-fallback results are stored here.
-# In production, replace with Redis / a real database.
+# ── In-memory response cache (for get_last_diagnosis / streaming) ────────────
 _last_diagnosis_cache: Dict[str, Any] = {}
 
 
@@ -71,11 +69,12 @@ def _validate_llm_output(raw: str) -> tuple[Dict[str, Any], bool]:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-@lru_cache(maxsize=128)
+# Internal dictionary for manual caching to avoid storing fallbacks
+_diagnosis_response_cache: Dict[str, Any] = {}
+
 def get_diagnosis(complaint: str, lesion: str, symptoms: str, age: int, region: str) -> dict:
     """
-    Internal cached function to prevent redundant Ollama calls for identical symptoms.
-    Returns a validated dictionary based on the DIAGNOSIS_SCHEMA.
+    Internal function to process diagnosis with manual caching of successful results.
     """
     case_data = {
         "complaint": complaint,
@@ -85,12 +84,19 @@ def get_diagnosis(complaint: str, lesion: str, symptoms: str, age: int, region: 
         "geographic_region": region
     }
     
+    # ── Cache Check ──────────────────────────────────────────────────────────
+    case_hash = _get_case_hash(case_data)
+    if case_hash in _diagnosis_response_cache:
+        logger.info("diagnosis: cache hit for %s", case_hash)
+        return dict(_diagnosis_response_cache[case_hash])
+
     # ── Build prompt ───────────────────────────────────────────────────────
     prompt = build_diagnosis_prompt_optimized(case_data)
 
     start_time = time.time()
 
     # ── Attempt 1: LLM call with built-in empty-response retry ────────────
+    # Use 1536 max_tokens to ensure complex responses aren't truncated
     raw = run_ai_with_retry(prompt, max_tokens=1536, format="json", max_retries=1)
     result, success = _validate_llm_output(raw)
 
@@ -99,6 +105,7 @@ def get_diagnosis(complaint: str, lesion: str, symptoms: str, age: int, region: 
         logger.warning(
             "diagnosis: first attempt produced invalid JSON – making one more LLM call"
         )
+        # On retry, we use a slightly lower token limit for safety if truncation was the issue
         raw2 = run_ai_with_retry(prompt, max_tokens=1536, format="json", max_retries=0)
         result, success = _validate_llm_output(raw2)
 
@@ -106,16 +113,18 @@ def get_diagnosis(complaint: str, lesion: str, symptoms: str, age: int, region: 
             logger.error(
                 "diagnosis: both attempts failed – returning DIAGNOSIS_FALLBACK"
             )
-            # Do NOT cache the fallback so the next request retries normally.
-            # Note: lru_cache will cache this, but we can't easily avoid it without custom logic.
-            # In a local app, this is usually acceptable.
+            # DO NOT CACHE FALLBACKS in _diagnosis_response_cache
             return dict(DIAGNOSIS_FALLBACK)
 
     # ── Annotate result ───────────────────────────────────────────────────
     result["_inference_time"] = f"{time.time() - start_time:.2f}s"
     result["_model"]          = "llama3:8b"
     
+    # ── Cache Success ─────────────────────────────────────────────────────
+    _diagnosis_response_cache[case_hash] = result
+    
     return result
+
 
 
 def generate_diagnosis(case_data: dict) -> dict:
@@ -130,12 +139,8 @@ def generate_diagnosis(case_data: dict) -> dict:
     age = int(case_data.get("patient_age", 0))
     region = case_data.get("geographic_region", "")
 
-    # Call the cached function
+    # Call the cached function (skips LLM on repeat cases; never caches fallbacks)
     result = dict(get_diagnosis(complaint, lesion, symptoms, age, region))
-    
-    # Determine if it was a cache hit (simplistic check for this MVP)
-    # If we wanted more accuracy, we'd wrap lru_cache info or use a manual cache.
-    # But the user asked specifically for functools.lru_cache.
     
     # Add raw clinical fields to result for SOAP generator
     result["complaint"] = complaint

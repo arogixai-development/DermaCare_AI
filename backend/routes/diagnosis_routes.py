@@ -19,6 +19,8 @@ class DiagnosisRequest(BaseModel):
     lesion: str
     symptoms: str = ""
     tests: str = ""
+    geographic_region: str = ""
+    patient_age: int = 0
 
 @router.post("/diagnosis")
 def diagnosis(req: DiagnosisRequest):
