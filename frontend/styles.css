@@ -274,6 +274,70 @@ h1, h2, h3, h4 {
   position: relative;
 }
 
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+  flex: 1;
+}
+
+.step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #64748b;
+  transition: all 0.3s ease;
+}
+
+.step.active .step-circle {
+  background: var(--medical-blue);
+  border-color: var(--medical-blue);
+  color: white;
+}
+
+.step.completed .step-circle {
+  background: var(--medical-blue);
+  border-color: var(--medical-blue);
+  color: white;
+}
+
+.step-label {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.step.active .step-label {
+  color: var(--medical-blue);
+  font-weight: 600;
+}
+
+.step.completed .step-label {
+  color: var(--medical-blue);
+}
+
+.step-connector {
+  position: absolute;
+  top: 20px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: #e2e8f0;
+  z-index: 0;
+}
+
+.step-connector.completed {
+  background: var(--medical-blue);
+}
+
 .search-container {
   display: flex;
   background: white;
@@ -296,8 +360,8 @@ h1, h2, h3, h4 {
 /* Loading overlay */
 .loading {
   display: none;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   flex-direction: column;
@@ -309,23 +373,46 @@ h1, h2, h3, h4 {
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(0,123,255,0.1);
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(0,123,255,0.15);
   border-top-color: var(--medical-blue);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
+.loading-text {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: #666;
+  text-align: center;
+}
+
+.estimated-time {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #999;
+}
+
 .progress-container {
   width: 100%;
-  height: 6px;
+  max-width: 300px;
+  height: 8px;
   background: var(--border-subtle);
-  border-radius: 3px;
-  margin: 2rem 0;
+  border-radius: 4px;
+  margin: 1.5rem 0;
   overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--medical-blue) 0%, #00d4aa 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px rgba(0,123,255,0.4);
 }
 
 #history-container {
@@ -434,4 +521,762 @@ h1, h2, h3, h4 {
   margin-bottom: 0.5rem;
   color: var(--medical-blue);
   font-size: 1rem;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .3s;
+  border-radius: 26px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--medical-blue);
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* Dark Mode - Complete Override */
+body.dark-mode {
+  --clinical-bg: #1a1a2e;
+  --sidebar-bg: #16213e;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --border-subtle: #374151;
+  --border-color: #4b5563;
+  --btn-secondary-bg: #374151;
+  --btn-secondary-text: #e5e7eb;
+  --alert-info-bg: #1e3a5f;
+  --alert-info-text: #93c5fd;
+  --alert-warning-bg: #451a03;
+  --alert-warning-text: #fbbf24;
+  --success-bg: #14532d;
+  --success-text: #86efac;
+  --error-bg: #450a0a;
+  --error-text: #fca5a5;
+  --bg-input: #1f2937;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-clinical: 0 10px 15px -3px rgba(0,0,0,0.3), 0 4px 6px -2px rgba(0,0,0,0.2);
+}
+
+body.dark-mode {
+  background: var(--clinical-bg);
+  color: var(--text-primary);
+}
+
+body.dark-mode .sidebar {
+  background: #0f172a !important;
+  border-right: 1px solid #334155 !important;
+}
+
+body.dark-mode .sidebar h2 {
+  color: #60a5fa !important;
+}
+
+body.dark-mode .sidebar-footer {
+  background: #1e293b !important;
+  border-top: 1px solid #334155 !important;
+}
+
+body.dark-mode .nav-item {
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode .nav-item:hover {
+  background: rgba(255,255,255,0.1) !important;
+  color: white !important;
+}
+
+body.dark-mode .nav-item.active {
+  background: rgba(0, 123, 255, 0.3) !important;
+  color: white !important;
+}
+
+body.dark-mode .nav-item span {
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode .nav-item strong {
+  color: white !important;
+}
+
+body.dark-mode #main-header {
+  background: #1e293b !important;
+  border-bottom: 1px solid #374151 !important;
+}
+
+body.dark-mode #main-header h3 {
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode #main-header span {
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .header {
+  background: transparent !important;
+  border-bottom: none !important;
+}
+
+body.dark-mode .header h2 {
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .header .subtitle {
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .clinical-card {
+  background: #1f2937 !important;
+  border-color: var(--border-subtle) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+body.dark-mode .clinical-card h3 {
+  color: var(--text-primary);
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+  border-color: var(--medical-blue);
+}
+
+body.dark-mode .floating-group label {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .floating-group input:focus + label,
+body.dark-mode .floating-group textarea:focus + label,
+body.dark-mode .floating-group select:focus + label {
+  color: var(--medical-blue) !important;
+}
+
+body.dark-mode .main-content {
+  background: var(--clinical-bg);
+}
+
+body.dark-mode .stepper-step.completed .step-circle {
+  background: var(--medical-blue) !important;
+  color: white !important;
+}
+
+body.dark-mode .stepper-step.active .step-circle {
+  background: var(--medical-blue) !important;
+  color: white !important;
+}
+
+body.dark-mode .stepper-step .step-label {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .stepper-step.active .step-label {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .stepper-step.completed .step-label {
+  color: var(--medical-blue) !important;
+}
+
+body.dark-mode .btn-secondary {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border-color: var(--border-subtle);
+}
+
+body.dark-mode .btn-secondary:hover {
+  background: #4b5563 !important;
+  color: #e5e7eb !important;
+}
+
+body.dark-mode .btn-secondary {
+  background: var(--btn-secondary-bg) !important;
+  color: var(--btn-secondary-text) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+body.dark-mode .clinical-alert.alert-info {
+  background: var(--alert-info-bg) !important;
+  color: var(--alert-info-text) !important;
+}
+
+body.dark-mode .clinical-alert.alert-warning {
+  background: var(--alert-warning-bg) !important;
+  color: var(--alert-warning-text) !important;
+}
+
+body.dark-mode .clinical-alert.alert-danger {
+  background: var(--error-bg) !important;
+  color: var(--error-text) !important;
+}
+
+body.dark-mode .clinical-alert.alert-success {
+  background: var(--success-bg) !important;
+  color: var(--success-text) !important;
+}
+
+body.dark-mode .triage-urgent {
+  background: var(--error-bg) !important;
+  color: var(--error-text) !important;
+}
+
+body.dark-mode .triage-moderate {
+  background: var(--alert-warning-bg) !important;
+  color: var(--alert-warning-text) !important;
+}
+
+body.dark-mode .triage-routine {
+  background: var(--success-bg) !important;
+  color: var(--success-text) !important;
+}
+
+body.dark-mode .progress-container {
+  background: #374151;
+}
+
+body.dark-mode .loading {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(6px);
+}
+
+body.dark-mode .loading-text {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .estimated-time {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .rich-text {
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .rich-text p,
+body.dark-mode .rich-text li,
+body.dark-mode .rich-text span {
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode .rich-text h4 {
+  color: #60a5fa !important;
+}
+
+body.dark-mode .rich-text ul {
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode #treatment-result {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode #treatment-result p,
+body.dark-mode #treatment-result li,
+body.dark-mode #treatment-result span {
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode .slider {
+  background-color: #4b5563 !important;
+}
+
+body.dark-mode input:checked + .slider {
+  background-color: var(--medical-blue) !important;
+}
+
+body.dark-mode .history-card {
+  background: #1f2937 !important;
+  border-color: var(--border-subtle) !important;
+}
+
+body.dark-mode .history-card:hover {
+  border-color: var(--medical-blue) !important;
+  box-shadow: var(--shadow-md);
+}
+
+body.dark-mode .history-card h4 {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .history-card p {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode #image-upload-area {
+  border-color: var(--border-subtle) !important;
+  background: #1f2937 !important;
+}
+
+body.dark-mode .history-card:hover {
+  border-color: var(--medical-blue);
+  box-shadow: var(--shadow-md);
+}
+
+body.dark-mode .metric-card {
+  background: #1f2937 !important;
+  border-color: var(--border-subtle) !important;
+}
+
+body.dark-mode .metric-value {
+  color: var(--medical-blue) !important;
+}
+
+body.dark-mode .metric-label {
+  color: var(--text-secondary) !important;
+}
+
+body.dark-mode .quick-action-card {
+  background: #1f2937 !important;
+  border-color: var(--border-subtle) !important;
+}
+
+body.dark-mode .quick-action-card:hover {
+  border-color: var(--medical-blue) !important;
+  background: #374151 !important;
+}
+
+body.dark-mode #image-upload-area {
+  border-color: var(--border-subtle);
+  background: #1f2937;
+}
+
+body.dark-mode .input-error {
+  border-color: var(--error-text) !important;
+}
+
+body.dark-mode .field-error {
+  color: var(--error-text) !important;
+}
+
+body.dark-mode .toast-notification {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* Comprehensive Dark Mode - Override Everything */
+body.dark-mode {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .workspace {
+  background: #0f172a !important;
+}
+
+body.dark-mode .container {
+  background: transparent !important;
+}
+
+body.dark-mode .screen {
+  background: transparent !important;
+}
+
+body.dark-mode .screen.active {
+  background: transparent !important;
+}
+
+body.dark-mode .nav-item.active {
+  background: rgba(0, 123, 255, 0.2) !important;
+  color: #60a5fa !important;
+}
+
+body.dark-mode .nav-item.active strong {
+  color: #60a5fa !important;
+}
+
+body.dark-mode .nav-divider {
+  background: #374151 !important;
+}
+
+body.dark-mode .sidebar-footer {
+  background: #1e293b !important;
+  border-top: 1px solid #374151 !important;
+}
+
+body.dark-mode .version-text {
+  color: #64748b !important;
+}
+
+body.dark-mode .step-circle {
+  background: white !important;
+  border-color: #475569 !important;
+  color: #334155 !important;
+}
+
+body.dark-mode .step.active .step-circle {
+  background: var(--medical-blue) !important;
+  border-color: var(--medical-blue) !important;
+  color: white !important;
+}
+
+body.dark-mode .step.completed .step-circle {
+  background: var(--medical-blue) !important;
+  border-color: var(--medical-blue) !important;
+  color: white !important;
+}
+
+body.dark-mode .step-label {
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .step.active .step-label {
+  color: #60a5fa !important;
+}
+
+body.dark-mode .step.completed .step-label {
+  color: #60a5fa !important;
+}
+
+body.dark-mode .step-connector {
+  background: #475569 !important;
+}
+
+body.dark-mode .step-connector.completed {
+  background: var(--medical-blue) !important;
+}
+
+body.dark-mode .floating-group input,
+body.dark-mode .floating-group select,
+body.dark-mode .floating-group textarea {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .floating-group input:focus,
+body.dark-mode .floating-group select:focus,
+body.dark-mode .floating-group textarea:focus {
+  border-color: var(--medical-blue) !important;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2) !important;
+}
+
+body.dark-mode .floating-group label {
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .floating-group input:focus + label,
+body.dark-mode .floating-group textarea:focus + label,
+body.dark-mode .floating-group select:focus + label {
+  color: var(--medical-blue) !important;
+}
+
+body.dark-mode .floating-group input:not(:placeholder-shown) + label,
+body.dark-mode .floating-group textarea:not(:placeholder-shown) + label,
+body.dark-mode .floating-group select:has(option:not(:default)) + label {
+  color: #64748b !important;
+}
+
+body.dark-mode select option {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode .btn-primary {
+  background: var(--medical-blue) !important;
+  color: white !important;
+}
+
+body.dark-mode .btn-primary:hover {
+  background: var(--medical-blue-hover) !important;
+}
+
+body.dark-mode .btn-small {
+  background: #374151 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #475569 !important;
+}
+
+body.dark-mode .btn-small:hover {
+  background: #4b5563 !important;
+}
+
+body.dark-mode .progress-bar {
+  background: linear-gradient(90deg, var(--medical-blue) 0%, #22d3ee 100%) !important;
+}
+
+body.dark-mode .spinner {
+  border-color: rgba(0, 123, 255, 0.2) !important;
+  border-top-color: var(--medical-blue) !important;
+}
+
+body.dark-mode hr {
+  border-color: #374151 !important;
+}
+
+body.dark-mode a {
+  color: #60a5fa !important;
+}
+
+body.dark-mode code {
+  background: #1e293b !important;
+  color: #22d3ee !important;
+  border: 1px solid #374151 !important;
+}
+
+body.dark-mode strong {
+  color: #f1f5f9 !important;
+}
+
+body.dark-mode #image-preview {
+  border-color: #374151 !important;
+  background: #1e293b !important;
+}
+
+/* ===== COMPREHENSIVE DARK MODE FIX ===== */
+/* This section must override all other styles */
+
+html body.dark-mode .step-circle {
+  background: #334155 !important;
+  border: 2px solid #475569 !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 0 8px rgba(0,0,0,0.3) !important;
+}
+
+html body.dark-mode .step.active .step-circle,
+html body.dark-mode .step.completed .step-circle {
+  background: #007bff !important;
+  border-color: #007bff !important;
+  color: white !important;
+  box-shadow: 0 0 12px rgba(0,123,255,0.4) !important;
+}
+
+html body.dark-mode .sidebar,
+html body.dark-mode .sidebar * {
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #475569 !important;
+}
+
+html body.dark-mode .nav-item,
+html body.dark-mode #nav-dashboard,
+html body.dark-mode #nav-new,
+html body.dark-mode #nav-history,
+html body.dark-mode #nav-drug,
+html body.dark-mode #nav-demo,
+html body.dark-mode #nav-settings {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  border: none !important;
+  text-shadow: none !important;
+}
+
+html body.dark-mode .nav-item strong,
+html body.dark-mode .nav-item span {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #ffffff !important;
+}
+
+html body.dark-mode .nav-item:hover {
+  background: rgba(255,255,255,0.1) !important;
+}
+
+html body.dark-mode .clinical-card,
+html body.dark-mode .metric-card,
+html body.dark-mode .quick-action-card,
+html body.dark-mode .history-card {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+}
+
+html body.dark-mode .workspace,
+html body.dark-mode .container,
+html body.dark-mode .screen,
+html body.dark-mode .screen.active {
+  background: #0f172a !important;
+}
+
+html body.dark-mode input,
+html body.dark-mode select,
+html body.dark-mode textarea {
+  background: #1e293b !important;
+  border: 1px solid #475657 !important;
+  color: #f8fafc !important;
+}
+
+html body.dark-mode label {
+  color: #94a3b8 !important;
+}
+
+html body.dark-mode .btn-secondary {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border: 1px solid #475657 !important;
+}
+
+html body.dark-mode h1,
+html body.dark-mode h2,
+html body.dark-mode h3,
+html body.dark-mode h4 {
+  color: #f8fafc !important;
+}
+
+html body.dark-mode p {
+  color: #cbd5e1 !important;
+}
+
+html body.dark-mode #main-header {
+  background: #1e293b !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+/* FINAL OVERRIDE - Highest Specificity */
+body.dark-mode aside.sidebar nav div.nav-item,
+body.dark-mode aside.sidebar nav #nav-dashboard,
+body.dark-mode aside.sidebar nav #nav-new,
+body.dark-mode aside.sidebar nav #nav-history,
+body.dark-mode aside.sidebar nav #nav-drug,
+body.dark-mode aside.sidebar nav #nav-demo,
+body.dark-mode aside.sidebar nav #nav-settings {
+  background: transparent !important;
+  background-image: none !important;
+  background-color: rgba(0,0,0,0) !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+body.dark-mode aside.sidebar nav div.nav-item *,
+body.dark-mode aside.sidebar nav div.nav-item::before,
+body.dark-mode aside.sidebar nav div.nav-item::after {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* Rich Text Fixes for Dark Mode */
+html body.dark-mode .rich-text,
+html body.dark-mode .rich-text p,
+html body.dark-mode .rich-text li,
+html body.dark-mode .rich-text span,
+html body.dark-mode .rich-text div {
+  color: #f1f5f9 !important;
+}
+
+html body.dark-mode .rich-text ul,
+html body.dark-mode .rich-text ol {
+  color: #e2e8f0 !important;
+}
+
+html body.dark-mode #treatment-result,
+html body.dark-mode #treatment-result p,
+html body.dark-mode #treatment-result li,
+html body.dark-mode #treatment-result span,
+html body.dark-mode #treatment-result div {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+html body.dark-mode .clinical-card .rich-text,
+html body.dark-mode .clinical-card .rich-text p {
+  color: #f1f5f9 !important;
+}
+
+/* SOAP Note Dark Mode Fixes - Override inline styles */
+html body.dark-mode #soap-result,
+html body.dark-mode #soap-result div,
+html body.dark-mode #soap-result p,
+html body.dark-mode #soap-result span {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+/* Box Diagnoses Dark Mode */
+html body.dark-mode #box-diagnoses,
+html body.dark-mode #box-diagnoses div,
+html body.dark-mode #box-diagnoses strong,
+html body.dark-mode #box-diagnoses span {
+  background: transparent !important;
+  color: #f1f5f9 !important;
+}
+
+/* Box Reasoning Dark Mode */
+html body.dark-mode #box-reasoning,
+html body.dark-mode #box-reasoning div,
+html body.dark-mode #box-reasoning p,
+html body.dark-mode #box-reasoning span {
+  background: transparent !important;
+  color: #f1f5f9 !important;
+}
+
+/* Box Tests Dark Mode */
+html body.dark-mode #box-tests,
+html body.dark-mode #box-tests div,
+html body.dark-mode #box-tests p,
+html body.dark-mode #box-tests span {
+  background: transparent !important;
+  color: #f1f5f9 !important;
+}
+
+/* Box Referral Dark Mode */
+html body.dark-mode #box-referral,
+html body.dark-mode #box-referral div,
+html body.dark-mode #box-referral p,
+html body.dark-mode #box-referral span {
+  background: transparent !important;
+  color: #f1f5f9 !important;
+}
+
+/* Treatment Result Dark Mode */
+html body.dark-mode #treatment-result,
+html body.dark-mode #treatment-result div,
+html body.dark-mode #treatment-result strong,
+html body.dark-mode #treatment-result span,
+html body.dark-mode #treatment-result p {
+  background: transparent !important;
+  color: #f1f5f9 !important;
 }

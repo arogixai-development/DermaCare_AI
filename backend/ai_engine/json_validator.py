@@ -1,6 +1,6 @@
 """
 JSON Validator for DermaCare AI
-================================
+===============================
 Provides robust JSON parsing, schema validation, retry logic, and
 fallback structured responses to ensure the frontend always receives
 well-formed JSON from the LLM pipeline.
@@ -22,23 +22,33 @@ logger = logging.getLogger("DermaCare_AI.json_validator")
 
 DIAGNOSIS_SCHEMA: Dict[str, Any] = {
     "required_keys": {
-        "diagnoses":  list,
-        "reasoning":  str,
-        "soap":       str,
-        "triage":     str,
-        "tests":      list,
-        "referral":   list,
-        "treatment":  list,
+        "differential_diagnosis": list,
+        "clinical_reasoning":     str,
+        "soap_note":             str,
+        "treatment_plan":         list,
+        "triage":                str,
     },
     "defaults": {
-        "diagnoses":  [],
-        "reasoning":  "",
-        "soap":       "",
-        "triage":     "Routine",
-        "tests":      [],
-        "referral":   [],
-        "treatment":  [],
+        "differential_diagnosis": [
+            {"condition": "Unable to determine", "probability": "N/A", "supporting_features": []}
+        ],
+        "clinical_reasoning":     "Analysis could not be completed. Please retry.",
+        "soap_note":             "S: Unable to complete\nO: No data\nA: Unable to assess\nP: Retry with additional information",
+        "treatment_plan":         [
+            {"medication": "Clinical evaluation recommended", "application": "N/A", "duration": "N/A", "education": "Consult dermatologist"}
+        ],
+        "triage":                "Routine",
     },
+}
+
+# Legacy field mappings for backward compatibility
+LEGACY_FIELD_MAPPING = {
+    "diagnoses": "differential_diagnosis",
+    "reasoning": "clinical_reasoning",
+    "soap": "soap_note",
+    "treatment": "treatment_plan",
+    "tests": "recommended_tests",
+    "referral": "referral_indicators",
 }
 
 DRUG_INTERACTION_SCHEMA: Dict[str, Any] = {
@@ -63,13 +73,17 @@ DRUG_INTERACTION_SCHEMA: Dict[str, Any] = {
 # ──────────────────────────────────────────────────────────────────────────────
 
 DIAGNOSIS_FALLBACK: Dict[str, Any] = {
-    "diagnoses": ["Unable to determine diagnosis at this time"],
-    "reasoning": "AI response could not be parsed. Please retry.",
-    "soap":      "S: AI parsing failed\nO: No data\nA: Error\nP: Retry",
-    "triage":    "Routine",
-    "tests":     ["Clinical evaluation recommended"],
-    "referral":  ["Consult a specialist"],
-    "treatment": ["Symptomatic management pending proper evaluation"],
+    "differential_diagnosis": [
+        {"condition": "Unable to determine diagnosis at this time", "probability": "N/A", "supporting_features": []}
+    ],
+    "clinical_reasoning": "AI response could not be parsed. Please retry.",
+    "soap_note": "S: AI parsing failed\nO: No data\nA: Unable to assess\nP: Please retry the analysis",
+    "treatment_plan": [
+        {"medication": "Symptomatic management pending proper evaluation", "application": "N/A", "duration": "N/A", "education": "Consult a specialist"}
+    ],
+    "triage": "Routine",
+    "referral_indicators": ["Consult a specialist"],
+    "follow_up": "Retry analysis with complete clinical information",
     "_fallback": True,
     "_error":    "JSON parsing / schema validation failed after retry",
 }
@@ -153,51 +167,26 @@ def validate_schema(
     defaults: Dict[str, Any]       = schema["defaults"]
 
     is_valid = True
-    coerced  = dict(data)  # Shallow copy so we don't mutate the caller's dict
+    coerced  = dict(data)
 
     for key, expected_type in required_keys.items():
         value = coerced.get(key)
 
-        # ── Missing or None ────────────────────────────────────────────────
         if value is None:
             logger.warning(
                 "Schema validation: missing key '%s' – using default %r",
-                key, defaults[key],
+                key, defaults.get(key),
             )
-            coerced[key] = defaults[key]
+            coerced[key] = defaults.get(key, None)
             is_valid = False
             continue
 
-        # ── Wrong type – attempt coercion ──────────────────────────────────
         if not isinstance(value, expected_type):
             try:
                 if expected_type is list and isinstance(value, str):
-                    # Wrap a bare string in a list
                     coerced[key] = [value]
                 elif expected_type is str and isinstance(value, list):
-                    # Join a list of strings into one string
                     coerced[key] = " ".join(str(v) for v in value)
-                elif expected_type is str and isinstance(value, dict):
-                    # Recursively format dictionary as a clean SOAP string
-                    def format_dict(d, indent=0):
-                        lines = []
-                        for k, v in d.items():
-                            header = str(k).upper()
-                            # Handle common SOAP abbreviations
-                            if header == 'S': header = 'SUBJECTIVE'
-                            elif header == 'O': header = 'OBJECTIVE'
-                            elif header == 'A': header = 'ASSESSMENT'
-                            elif header == 'P': header = 'PLAN'
-                            
-                            if isinstance(v, dict):
-                                lines.append(f"{'  ' * indent}{header}:\n{format_dict(v, indent + 1)}")
-                            elif isinstance(v, list):
-                                lines.append(f"{'  ' * indent}{header}: {' '.join(str(i) for i in v)}")
-                            else:
-                                lines.append(f"{'  ' * indent}{header}: {v}")
-                        return "\n".join(lines)
-                    
-                    coerced[key] = format_dict(value)
                 else:
                     coerced[key] = expected_type(value)
                 logger.warning(
@@ -209,10 +198,47 @@ def validate_schema(
                     "Schema validation: cannot coerce key '%s' (%s) – using default. Reason: %s",
                     key, type(value).__name__, exc,
                 )
-                coerced[key] = defaults[key]
+                coerced[key] = defaults.get(key)
                 is_valid = False
 
     return is_valid, coerced
+
+
+def convert_legacy_to_new(data: dict) -> dict:
+    """
+    Convert legacy field names to new field names for backward compatibility.
+    """
+    result = dict(data)
+    
+    # Map legacy fields to new fields
+    for legacy_key, new_key in LEGACY_FIELD_MAPPING.items():
+        if legacy_key in result and new_key not in result:
+            result[new_key] = result[legacy_key]
+    
+    # Convert legacy lists to new treatment_plan format
+    if "treatment" in data and "treatment_plan" not in result:
+        treatments = data.get("treatment", [])
+        if isinstance(treatments, list):
+            result["treatment_plan"] = [
+                {"medication": t if isinstance(t, str) else str(t), 
+                 "application": "Per clinical guidelines", 
+                 "duration": "As directed", 
+                 "education": "Follow prescribing instructions"}
+                for t in treatments
+            ]
+    
+    # Convert diagnoses to differential_diagnosis format
+    if "diagnoses" in data and "differential_diagnosis" not in result:
+        diagnoses = data.get("diagnoses", [])
+        if isinstance(diagnoses, list):
+            result["differential_diagnosis"] = [
+                {"condition": d if isinstance(d, str) else str(d), 
+                 "probability": "N/A", 
+                 "supporting_features": []}
+                for d in diagnoses
+            ]
+    
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -235,6 +261,7 @@ def parse_and_validate(
     2. ``extract_json_from_text`` – strip prose / markdown fences.
     3. ``json.loads()``           – decode JSON.
     4. ``validate_schema()``      – type-check and coerce missing fields.
+    5. Convert legacy fields to new format for backward compatibility.
 
     Parameters
     ----------
@@ -253,10 +280,8 @@ def parse_and_validate(
         logger.error("[%s] LLM returned an empty response", context)
         return dict(fallback), False
 
-    # Step 1 – Extract JSON from potential surrounding text
     cleaned = extract_json_from_text(raw_str)
 
-    # Step 2 – Parse with json.loads()
     try:
         parsed = json.loads(cleaned)
     except json.JSONDecodeError as exc:
@@ -273,7 +298,8 @@ def parse_and_validate(
         )
         return dict(fallback), False
 
-    # Step 3 – Schema validation + coercion
+    parsed = convert_legacy_to_new(parsed)
+
     is_valid, coerced = validate_schema(parsed, schema)
 
     if not is_valid:
