@@ -40,7 +40,7 @@ _last_diagnosis_cache: Dict[str, Any] = {}
 
 
 def _get_case_hash(case_data: dict) -> str:
-    """Generate a stable hash from the essential clinical fields."""
+    """Generate a stable hash from the essential clinical fields using SHA-256."""
     essential = {
         "complaint":         case_data.get("complaint", ""),
         "lesion":            case_data.get("lesion", ""),
@@ -48,7 +48,7 @@ def _get_case_hash(case_data: dict) -> str:
         "patient_age":       case_data.get("patient_age", ""),
         "geographic_region": case_data.get("geographic_region", ""),
     }
-    return hashlib.md5(json.dumps(essential, sort_keys=True).encode()).hexdigest()
+    return hashlib.sha256(json.dumps(essential, sort_keys=True).encode()).hexdigest()
 
 
 def _validate_llm_output(raw: str) -> tuple[Dict[str, Any], bool]:
@@ -72,7 +72,7 @@ def _validate_llm_output(raw: str) -> tuple[Dict[str, Any], bool]:
 # Internal dictionary for manual caching to avoid storing fallbacks
 _diagnosis_response_cache: Dict[str, Any] = {}
 
-def get_diagnosis(complaint: str, lesion: str, symptoms: str, age: int, region: str) -> dict:
+def get_diagnosis(complaint: str, lesion: str, symptoms: str, age: int, region: str, phototype: str = "Type III") -> dict:
     """
     Internal function to process diagnosis with manual caching of successful results.
     """
@@ -81,46 +81,38 @@ def get_diagnosis(complaint: str, lesion: str, symptoms: str, age: int, region: 
         "lesion": lesion,
         "symptoms": symptoms,
         "patient_age": age,
-        "geographic_region": region
+        "geographic_region": region,
+        "skin_phototype": phototype
     }
     
-    # ── Cache Check ──────────────────────────────────────────────────────────
     case_hash = _get_case_hash(case_data)
     if case_hash in _diagnosis_response_cache:
         logger.info("diagnosis: cache hit for %s", case_hash)
         return dict(_diagnosis_response_cache[case_hash])
 
-    # ── Build prompt ───────────────────────────────────────────────────────
     prompt = build_diagnosis_prompt_optimized(case_data)
 
     start_time = time.time()
 
-    # ── Attempt 1: LLM call with built-in empty-response retry ────────────
-    # Use 1536 max_tokens to ensure complex responses aren't truncated
-    raw = run_ai_with_retry(prompt, max_tokens=1536, format="json", max_retries=1)
+    raw = run_ai_with_retry(prompt, max_tokens=2000, format="json", max_retries=1)
     result, success = _validate_llm_output(raw)
 
-    # ── Attempt 2: full second LLM call if JSON was invalid ───────────────
     if not success:
         logger.warning(
             "diagnosis: first attempt produced invalid JSON – making one more LLM call"
         )
-        # On retry, we use a slightly lower token limit for safety if truncation was the issue
-        raw2 = run_ai_with_retry(prompt, max_tokens=1536, format="json", max_retries=0)
+        raw2 = run_ai_with_retry(prompt, max_tokens=2000, format="json", max_retries=0)
         result, success = _validate_llm_output(raw2)
 
         if not success:
             logger.error(
                 "diagnosis: both attempts failed – returning DIAGNOSIS_FALLBACK"
             )
-            # DO NOT CACHE FALLBACKS in _diagnosis_response_cache
             return dict(DIAGNOSIS_FALLBACK)
 
-    # ── Annotate result ───────────────────────────────────────────────────
     result["_inference_time"] = f"{time.time() - start_time:.2f}s"
-    result["_model"]          = "llama3:8b"
+    result["_model"] = "phi3"
     
-    # ── Cache Success ─────────────────────────────────────────────────────
     _diagnosis_response_cache[case_hash] = result
     
     return result
@@ -132,24 +124,22 @@ def generate_diagnosis(case_data: dict) -> dict:
     Synchronous diagnosis generation with full reliability pipeline.
     Uses get_diagnosis (cached) to avoid redundant AI calls.
     """
-    # Extract essential fields for caching
     complaint = case_data.get("complaint", "")
     lesion = case_data.get("lesion", "")
     symptoms = case_data.get("symptoms", "")
     age = int(case_data.get("patient_age", 0))
     region = case_data.get("geographic_region", "")
+    phototype = case_data.get("skin_phototype", "Type III")
 
-    # Call the cached function (skips LLM on repeat cases; never caches fallbacks)
-    result = dict(get_diagnosis(complaint, lesion, symptoms, age, region))
+    result = dict(get_diagnosis(complaint, lesion, symptoms, age, region, phototype))
     
-    # Add raw clinical fields to result for SOAP generator
     result["complaint"] = complaint
     result["lesion"] = lesion
     result["symptoms"] = symptoms
     result["patient_age"] = age
     result["geographic_region"] = region
+    result["skin_phototype"] = phototype
     
-    # Update global cache for SOAP generator awareness
     case_hash = _get_case_hash(case_data)
     _last_diagnosis_cache[case_hash] = result
     

@@ -33,7 +33,7 @@
                 <div id="nav-drug" class="nav-item" onclick="window.app.showScreen('screen-drug-checker')" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;">
                     <span>💊</span> <strong>Drug Checker</strong>
                 </div>
-                <div id="nav-demo" class="nav-item" onclick="window.app.runDemoCase()" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s; border: 1px dashed var(--medical-blue); background: rgba(0, 123, 255, 0.05);">
+                <div id="nav-demo" class="nav-item" onclick="window.app.runDemoCase()" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s; border: 1px dashed var(--medical-blue);">
                     <span>🚀</span> <strong>Demo Case</strong>
                 </div>
                 <div id="nav-settings" class="nav-item" onclick="window.app.showScreen('screen-settings')" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;">
@@ -55,9 +55,9 @@
         <!-- MAIN WORKSPACE -->
         <main class="main-content">
             <!-- Top Bar -->
-            <header style="height: 70px; background: white; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; padding: 0 2.5rem; justify-content: space-between;">
+            <header id="main-header" style="height: 70px; background: white; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; padding: 0 2.5rem; justify-content: space-between;">
                 <div>
-                   <h3 style="margin: 0; font-weight: 600;">Clinical Workspace</h3>
+                   <h3 style="margin: 0; font-weight: 600; color: var(--text-primary);">Clinical Workspace</h3>
                 </div>
                 <div style="display: flex; gap: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
                     <span id="network-status">Status: 🟢 Online (Local)</span>
@@ -126,8 +126,8 @@
                   <div class="clinical-card">
                     <div class="grid-cols-2">
                       <div class="floating-group">
-                        <input type="number" id="patient_age" placeholder=" " required>
-                        <label>Patient Age *</label>
+                        <input type="number" id="patient_age" placeholder=" " min="0" max="120" required>
+                        <label>Patient Age * (0-120)</label>
                       </div>
                       <div class="floating-group">
                         <input type="text" id="geographic_region" placeholder=" " required>
@@ -185,12 +185,34 @@
                       <input type="text" id="tests" placeholder=" ">
                       <label>Available Test Results (e.g. Dermoscopy, Biopsy)</label>
                     </div>
+                    
+                    <!-- Image Upload Section -->
+                    <div class="clinical-card" style="margin-top: 1rem; padding: 1rem; border: 2px dashed var(--border-subtle); border-radius: var(--radius-md);">
+                      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.5rem;">📷</span>
+                        <strong>Lesion Image (Optional)</strong>
+                      </div>
+                      <div id="image-upload-area" style="text-align: center; padding: 1rem;">
+                        <input type="file" id="lesion-image" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload(this)">
+                        <button onclick="document.getElementById('lesion-image').click()" class="btn btn-secondary btn-small" style="margin-bottom: 0.5rem;">
+                          📁 Upload Image
+                        </button>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">Supports JPG, PNG, WebP (max 5MB)</p>
+                      </div>
+                      <div id="image-preview-container" style="display: none; margin-top: 1rem;">
+                        <div style="position: relative; display: inline-block;">
+                          <img id="image-preview" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+                          <button onclick="window.app.removeImage()" style="position: absolute; top: 8px; right: 8px; background: rgba(220,53,69,0.9); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px;">×</button>
+                        </div>
+                        <p id="image-info" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;"></p>
+                      </div>
+                    </div>
 
                     <div class="loading" id="loading" style="display: none;">
-                      <div class="spinner pulse"></div>
-                      <p id="analysis-status" style="margin-top: 1rem;">AI Analysis in progress...</p>
+                      <div class="spinner"></div>
+                      <p id="analysis-status" class="loading-text">Preparing analysis...</p>
                       <div class="progress-container"><div id="analysis-progress" class="progress-bar"></div></div>
-                      <small>Clinical inference might take up to 2 minutes locally.</small>
+                      <p class="estimated-time" id="estimated-time">Estimated time: 30-60 seconds</p>
                     </div>
                   </div>
 
@@ -288,7 +310,7 @@
                         <div class="spinner"></div>
                         <p style="margin-top: 1rem;">Formatting clinical documentation...</p>
                     </div>
-                    <div id="soap-result" class="rich-text" style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.95rem; color: #334155;"></div>
+                    <div id="soap-result" class="rich-text" style="line-height: 1.6;"></div>
                   </div>
 
                   <div style="display: flex; justify-content: space-between;">
@@ -427,15 +449,80 @@
                 <section id="screen-settings" class="screen">
                    <div class="header">
                     <h2>Clinical Settings</h2>
-                    <p class="subtitle">System and doctor configuration</p>
-                  </div>
-                  <div class="clinical-card">
-                    <p>Configuration options for Offline AI models and EHR integration are managed here.</p>
-                  </div>
-                  <div style="display: flex; justify-content: flex-end;">
-                     <button onclick="window.app.showScreen('screen-dashboard')" class="btn btn-primary">Save & Exit</button>
-                  </div>
-                </section>
+                    <p class="subtitle">System and configuration management</p>
+                   </div>
+                   
+                   <!-- AI Model Settings -->
+                   <div class="clinical-card">
+                     <h3 style="margin-bottom: 1rem;">🤖 AI Model Configuration</h3>
+                     <div class="floating-group">
+                       <input type="text" id="settings-model-name" placeholder=" " value="phi3">
+                       <label>Model Name</label>
+                     </div>
+                     <div class="floating-group">
+                       <input type="text" id="settings-api-url" placeholder=" " value="http://127.0.0.1:11434">
+                       <label>Ollama API URL</label>
+                     </div>
+                     <button onclick="window.app.testAIConnection()" class="btn btn-secondary btn-small" style="margin-top: 0.5rem;">
+                       🔗 Test Connection
+                     </button>
+                   </div>
+                   
+                   <!-- Theme Settings -->
+                   <div class="clinical-card">
+                     <h3 style="margin-bottom: 1rem;">🎨 Appearance</h3>
+                     <div style="display: flex; align-items: center; justify-content: space-between;">
+                       <div>
+                         <strong>Dark Mode</strong>
+                         <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">Enable dark theme for low-light environments</p>
+                       </div>
+                       <label class="toggle-switch">
+                         <input type="checkbox" id="settings-dark-mode" onchange="window.app.toggleDarkMode(this)">
+                         <span class="slider"></span>
+                       </label>
+                     </div>
+                   </div>
+                   
+                   <!-- Data Management -->
+                   <div class="clinical-card">
+                     <h3 style="margin-bottom: 1rem;">💾 Data Management</h3>
+                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                       <div style="display: flex; align-items: center; justify-content: space-between;">
+                         <div>
+                           <strong>Case History</strong>
+                           <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;" id="case-count">Loading...</p>
+                         </div>
+                         <button onclick="window.app.exportAllCases()" class="btn btn-secondary btn-small">📤 Export</button>
+                       </div>
+                       <div style="display: flex; align-items: center; justify-content: space-between;">
+                         <div>
+                           <strong>Clear Cache</strong>
+                           <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">Clear AI response cache</p>
+                         </div>
+                         <button onclick="window.app.clearCache()" class="btn btn-secondary btn-small">🗑️ Clear</button>
+                       </div>
+                       <div style="display: flex; align-items: center; justify-content: space-between;">
+                         <div>
+                           <strong>Delete All Cases</strong>
+                           <p style="font-size: 0.85rem; color: var(--error-text); margin: 0;">Permanently delete all stored cases</p>
+                         </div>
+                         <button onclick="window.app.confirmDeleteAllCases()" class="btn btn-small" style="background: #dc3545; color: white; border-color: #dc3545;">⚠️ Delete All</button>
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <!-- About -->
+                   <div class="clinical-card">
+                     <h3 style="margin-bottom: 1rem;">ℹ️ About</h3>
+                     <p><strong>DermaCare AI</strong> v1.0.0</p>
+                     <p style="font-size: 0.85rem; color: var(--text-secondary);">Dermatology Clinical Decision Support System</p>
+                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Powered by Ollama LLM • Offline-first PWA</p>
+                   </div>
+                   
+                   <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                      <button onclick="window.app.showScreen('screen-dashboard')" class="btn btn-primary">💾 Save & Exit</button>
+                   </div>
+                 </section>
 
               </div>
             </div>
@@ -449,6 +536,16 @@
     <script>
         // Set current date in header
         document.getElementById('header-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        // Initialize dark mode from localStorage on page load
+        (function initTheme() {
+            const theme = localStorage.getItem('dermacare-theme');
+            if (theme === 'dark') {
+                document.body.classList.add('dark-mode');
+                const checkbox = document.getElementById('settings-dark-mode');
+                if (checkbox) checkbox.checked = true;
+            }
+        })();
     </script>
 </body>
 </html>

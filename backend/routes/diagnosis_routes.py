@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from backend.services.diagnosis_service import (
     generate_diagnosis, 
     generate_diagnosis_async,
@@ -9,25 +9,43 @@ from backend.services.diagnosis_service import (
     clear_cache,
     get_cache_stats
 )
+from backend.ai_engine.ollama_client import check_ollama_connection, OllamaConnectionError
 import json
 
 router = APIRouter()
 
 class DiagnosisRequest(BaseModel):
-    context: str = ""
-    complaint: str
-    lesion: str
-    symptoms: str = ""
-    tests: str = ""
-    geographic_region: str = ""
-    patient_age: int = 0
+    context: str = Field(default="", max_length=1000)
+    complaint: str = Field(max_length=2000)
+    lesion: str = Field(max_length=2000)
+    symptoms: str = Field(default="", max_length=2000)
+    tests: str = Field(default="", max_length=1000)
+    geographic_region: str = Field(default="", max_length=100)
+    patient_age: int = Field(ge=0, le=120)
+    
+    @field_validator('complaint', 'lesion')
+    @classmethod
+    def strip_whitespace(cls, v):
+        return v.strip() if isinstance(v, str) else v
 
 @router.post("/diagnosis")
 def diagnosis(req: DiagnosisRequest):
     """Optimized synchronous diagnosis endpoint"""
     try:
+        # Check Ollama first
+        status = check_ollama_connection()
+        if not status["connected"]:
+            raise HTTPException(
+                status_code=503,
+                detail=f"AI Backend Offline: {status['error']}"
+            )
+        
         result = generate_diagnosis(req.model_dump())
         return result
+    except HTTPException:
+        raise
+    except OllamaConnectionError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Diagnosis generation failed: {str(e)}")
 
@@ -93,10 +111,15 @@ def clear_diagnosis_cache():
 @router.get("/diagnosis/health")
 def diagnosis_health():
     """Health check for diagnosis service"""
+    status = check_ollama_connection()
     return {
-        "status": "healthy",
+        "status": "healthy" if status["connected"] else "degraded",
+        "ollama_connected": status["connected"],
+        "ollama_models": status["models"],
+        "ollama_error": status["error"],
         "model": "llama3:8b",
-        "gpu_acceleration": "enabled",
+        "gpu_acceleration": "enabled" if status["connected"] else "unavailable",
         "optimization_level": "high",
-        "streaming": "available"
+        "streaming": "available" if status["connected"] else "unavailable",
+        "instructions": "If Ollama shows offline, run: `ollama serve` in a terminal"
     }

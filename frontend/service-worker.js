@@ -41,8 +41,8 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event: strictly "Cache-First" Strategy for offline rendering
 self.addEventListener('fetch', (event) => {
-  // Never intercept API requests heading to our FastAPI port 8002
-  if (event.request.url.includes(':8002')) {
+  // Never intercept API requests heading to our FastAPI port 8000
+  if (event.request.url.includes(':8000')) {
       return; // Let the browser handle these normally (they fail naturally if offline)
   }
 

@@ -5,20 +5,56 @@ import json
 import logging
 from typing import Optional, Dict, Any
 from functools import lru_cache
+from backend.config import get_model_name
 
 logger = logging.getLogger("DermaCare_AI.ollama_client")
+
+class OllamaConnectionError(Exception):
+    """Raised when Ollama is not available or not running."""
+    pass
+
+def check_ollama_connection() -> Dict[str, Any]:
+    """
+    Check if Ollama is running and accessible.
+    Returns status info with connection details.
+    """
+    try:
+        models = ollama.list()
+        return {
+            "connected": True,
+            "models": [m.get("name") for m in models.get("models", [])],
+            "error": None
+        }
+    except Exception as e:
+        error_msg = str(e)
+        if "connection" in error_msg.lower() or "refused" in error_msg.lower():
+            return {
+                "connected": False,
+                "models": [],
+                "error": "Ollama is not running. Please start Ollama: `ollama serve`"
+            }
+        return {
+            "connected": False,
+            "models": [],
+            "error": f"Ollama error: {error_msg}"
+        }
 
 # Cache for AI responses to avoid redundant calls
 @lru_cache(maxsize=128)
 def _get_prompt_hash(prompt: str) -> str:
     """Generate a hash for the prompt to use as cache key"""
-    return hashlib.md5(prompt.encode()).hexdigest()
+    return hashlib.sha256(prompt.encode()).hexdigest()
 
 def run_ai_optimized(prompt: str, max_tokens: int = 1536, format: str = None) -> str:
     """
     Run AI inference with optimized parameters for maximum performance.
     Uses quantized model and aggressive optimization settings.
     """
+    # Check Ollama connection first
+    status = check_ollama_connection()
+    if not status["connected"]:
+        raise OllamaConnectionError(status["error"])
+    
     prompt_hash = _get_prompt_hash(prompt)
     
     # Try to get from cache first
@@ -29,25 +65,26 @@ def run_ai_optimized(prompt: str, max_tokens: int = 1536, format: str = None) ->
     except:
         pass
     
-    response = ollama.chat(
-        model="llama3:8b",  
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
-        format=format,
-        options={
-            "num_predict": max_tokens,  # Strict token limit for faster responses
-            "temperature": 0.05,        # Very low for deterministic, fast responses
-            "top_p": 0.7,              # Lower for more focused generation
-            "top_k": 40,               # Additional constraint for faster generation
-            "repeat_penalty": 1.1,     # Prevent repetitive responses
-            "num_gpu": -1,             # Full GPU offloading (RTX 4050)
-            "num_thread": 8,           # CPU threads for parallel processing
-            "num_ctx": 4096,            # Expanded context window for deep clinical reasoning
-            "mirostat": 0,             # Disable mirostat for faster generation
-            "seed": 42                 # Deterministic responses
-        }
-    )
+    # Build options dict - optimized for speed
+    options = {
+        "num_predict": min(max_tokens, 1500),  # Allow larger responses
+        "temperature": 0.3,
+        "top_p": 0.9,
+        "top_k": 40,
+        "repeat_penalty": 1.1,
+        "num_gpu": -1,  # Use GPU if available
+        "num_thread": 8,
+        "num_ctx": 4096,  # Larger context
+        "mirostat": 0,
+        "stop": ["</s>", "USER:", "ASSISTANT:"]
+    }
+    
+    # Only include format if specified
+    kwargs = {"model": get_model_name(), "messages": [{"role": "user", "content": prompt}], "options": options}
+    if format:
+        kwargs["format"] = format
+    
+    response = ollama.chat(**kwargs)
     return response["message"]["content"]
 
 async def run_ai_streaming(prompt: str, max_tokens: int = 120, format: str = None):
@@ -57,7 +94,7 @@ async def run_ai_streaming(prompt: str, max_tokens: int = 120, format: str = Non
     prompt_hash = _get_prompt_hash(prompt)
     
     stream = ollama.chat(
-        model="llama3:8b",
+        model=get_model_name(),
         messages=[
             {"role": "user", "content": prompt}
         ],
@@ -105,7 +142,7 @@ async def run_ai_batch_async(prompts: list, max_tokens: int = 120, format: str =
 def run_ai_with_retry(
     prompt: str,
     max_tokens: int = 1536,
-    format: str = "json",
+    format: str = None,
     max_retries: int = 1,
 ) -> str:
     """

@@ -1,50 +1,48 @@
 def build_diagnosis_prompt_optimized(data: dict) -> str:
     """
-    State-of-the-art Clinical Prompt for Llama 3 (8B).
-    Demands exhaustive pathophysiological depth, detailed morphological analysis,
-    and a comprehensive, professional clinical record.
+    Clinical Diagnosis Prompt for DermaCare AI.
+    Produces strict JSON output for reliable parsing.
     """
-    age       = data.get('patient_age', 'Unknown')
+    age       = str(data.get('patient_age', 'Unknown'))
     region    = data.get('geographic_region', 'Unknown')
     complaint = data.get('complaint', 'None')
-    lesion    = data.get('lesion', 'None specified')
-    symptoms  = data.get('symptoms', 'None reported')
-    tests     = data.get('tests', 'None provided')
+    lesion    = data.get('lesion', 'None')
+    symptoms  = data.get('symptoms', 'None')
+    tests     = data.get('tests', 'None')
+    phototype = data.get('skin_phototype', 'Type III')
 
-    prompt = f"""You are a Senior Dermatologist and Clinical Diagnostician at a world-class institution. 
-Analyze this clinical case with exhaustive precision and professional depth.
+    prompt = f"""Dermatology case analysis. Return ONLY valid JSON:
 
-### PATIENT PRESENTATION:
-- Age: {age}
-- Region: {region}
-- Chief Complaint: {complaint}
-- Physical Morphology: {lesion}
-- Associated Symptoms: {symptoms}
-- Relevant History/Tests: {tests}
+Patient: {age}yo, {region}, Skin: {phototype}
+Complaint: {complaint}
+Lesion: {lesion}
+Symptoms: {symptoms}
+Tests: {tests}
 
-### MANDATORY CLINICAL REQUIREMENTS:
-1. **Possible Diagnoses**: Provide a clear list of differential diagnoses.
-2. **Pathophysiological Reasoning**: Write a detailed, technical paragraph explaining the clinical morphology. 
-   - Discuss why the specific findings (e.g., scale type, distribution, Auspitz sign, capillary tortuosity) lead to the diagnosis.
-   - Mention relevant pathophysiological mechanisms (e.g., epidermal turnover, inflammatory pathways).
-3. **Professional SOAP Note**: Provide a exhaustive, continuous string.
-   - SUBJECTIVE: Comprehensive patient history, onset, and aggravating/relieving factors.
-   - OBJECTIVE: Descriptive dermatological morphology using professional standard terminology.
-   - ASSESSMENT: Synthesize findings into a definitive clinical working diagnosis.
-   - PLAN: Provide a tiered management strategy including topical therapies, systemic options if indicated, specific diagnostic follow-up, and detailed patient counseling.
-4. **Patient-Facing Management**: Provide clear, step-by-step instructions for the patient to follow (e.g., application frequency, skin care behavior).
+CRITICAL: soap_note must be plain text with | separator, NOT Python dict:
+GOOD: "soap_note": "S: Patient reports pain | O: Red lesion found | A: Likely infection | P: Prescribe antibiotic"
+BAD: "soap_note": "{{'S': 'Patient reports pain', 'O': 'Red lesion'}}"
 
-### OUTPUT FORMAT:
-You MUST respond with ONLY a valid JSON object. No explanations, markdown tags, or prose outside the JSON.
+JSON template:
 {{
-  "diagnoses": ["Most likely Dx", "Differential 1", "Differential 2"],
-  "reasoning": "A highly detailed, MULTI-PARAGRAPH technical explanation of the clinical findings, morphological analysis, and diagnostic logic.",
-  "soap": "SUBJECTIVE: ...\\nOBJECTIVE: ...\\nASSESSMENT: ...\\nPLAN: ...",
-  "triage": "Urgent/Moderate/Routine",
-  "tests": ["Detailed follow-up test 1", "Diagnostic step 2"],
-  "referral": ["Specific specialist guidance"],
-  "treatment": ["Medication 1: dosage/frequency", "Step 2: Skin care regimen", "Step 3: Patient education point"]
-}}"""
+  "differential_diagnosis": [
+    {{"condition": "Name", "probability": "X%", "supporting_features": ["f1", "f2"]}}
+  ],
+  "clinical_reasoning": "Reasoning text here",
+  "soap_note": "S: subjective text | O: objective text | A: assessment text | P: plan text",
+  "treatment_plan": [
+    {{"medication": "Drug name", "application": "Apply twice daily", "duration": "7 days", "education": "Advice"}}
+  ],
+  "triage": "Routine",
+  "referral_indicators": ["Warning sign 1"],
+  "follow_up": "2 weeks"
+}}
+
+Rules: 
+- 3 differential diagnoses required
+- soap_note MUST use | separator between sections, NOT curly braces
+- 2+ treatment items required
+- Return valid JSON only, no explanation"""
     return prompt
 
 
