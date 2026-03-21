@@ -1,551 +1,939 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DermaCare AI - Clinical Decision Support</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- PWA Support -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#007bff">
-    <!-- jsPDF for SOAP Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DermaCare AI - Clinical Decision Support</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#005dac">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
+
 <body>
-    <div class="app-layout">
-        <!-- SIDEBAR NAVIGATION -->
-        <aside class="sidebar">
-            <div style="padding: 2rem; display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 32px; height: 32px; background: var(--medical-blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">D</div>
-                <h2 style="margin: 0; font-size: 1.2rem; color: var(--medical-blue);">DermaCare AI</h2>
-            </div>
-            
-            <nav style="flex: 1; padding: 0 1rem;">
-                <div id="nav-dashboard" class="nav-item active" onclick="window.app.showScreen('screen-dashboard')" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;">
-                    <span>🏠</span> <strong>Dashboard</strong>
-                </div>
-                <div id="nav-new" class="nav-item" onclick="window.app.startNewDiagnosis()" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;">
-                    <span>➕</span> <strong>New Diagnosis</strong>
-                </div>
-                <div id="nav-history" class="nav-item" onclick="window.app.showHistory()" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;">
-                    <span>📋</span> <strong>Case History</strong>
-                </div>
-                <div id="nav-drug" class="nav-item" onclick="window.app.showScreen('screen-drug-checker')" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;">
-                    <span>💊</span> <strong>Drug Checker</strong>
-                </div>
-                <div id="nav-demo" class="nav-item" onclick="window.app.runDemoCase()" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s; border: 1px dashed var(--medical-blue);">
-                    <span>🚀</span> <strong>Demo Case</strong>
-                </div>
-                <div id="nav-settings" class="nav-item" onclick="window.app.showScreen('screen-settings')" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: background 0.2s;">
-                    <span>⚙️</span> <strong>Settings</strong>
-                </div>
-            </nav>
+  <div class="app-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <h1>DermaCare AI</h1>
+        <p>Clinical Precision</p>
+      </div>
 
-            <div style="padding: 2rem; border-top: 1px solid var(--border-subtle);">
-                <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem;">
-                    <div style="width: 36px; height: 36px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600;">SJ</div>
-                    <div>
-                        <div style="font-weight: 600;">Dr. Sarah Johnson</div>
-                        <div style="color: var(--text-secondary); font-size: 0.8rem;">Dermatologist</div>
-                    </div>
-                </div>
-            </div>
-        </aside>
+      <nav class="sidebar-nav">
+        <div id="nav-dashboard" class="nav-item active" onclick="window.app.showScreen('screen-dashboard')">
+          <span class="material-icons">dashboard</span>
+          <span>Dashboard</span>
+        </div>
+        <div id="nav-new" class="nav-item" onclick="window.app.startNewDiagnosis()">
+          <span class="material-icons">add_circle</span>
+          <span>New Diagnosis</span>
+        </div>
+        <div id="nav-history" class="nav-item" onclick="window.app.showHistory()">
+          <span class="material-icons">history</span>
+          <span>Case History</span>
+        </div>
+        <div id="nav-drug" class="nav-item" onclick="window.app.showScreen('screen-drug-checker')">
+          <span class="material-icons">medication</span>
+          <span>Drug Checker</span>
+        </div>
+        <div id="nav-settings" class="nav-item" onclick="window.app.showScreen('screen-settings')">
+          <span class="material-icons">settings</span>
+          <span>Settings</span>
+        </div>
+      </nav>
 
-        <!-- MAIN WORKSPACE -->
-        <main class="main-content">
-            <!-- Top Bar -->
-            <header id="main-header" style="height: 70px; background: white; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; padding: 0 2.5rem; justify-content: space-between;">
+      <div class="sidebar-footer">
+        <button class="new-diagnosis-btn" onclick="window.app.startNewDiagnosis()">
+          <span class="material-icons">add</span>
+          New Diagnosis
+        </button>
+        <div class="user-profile" style="margin-top: 1.5rem;">
+          <div class="user-avatar">SJ</div>
+          <div>
+            <div class="user-name">Dr. Sarah Johnson</div>
+            <div class="user-role">Dermatologist</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <h2 class="top-bar-title">Clinical Workspace</h2>
+          <div style="height: 1.5rem; width: 1px; background: var(--outline-variant);"></div>
+          <div class="status-badge" id="connection-status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Checking...</span>
+          </div>
+        </div>
+        <div class="top-bar-right">
+          <button class="btn btn-ghost btn-small" id="retry-btn" onclick="window.app.retryConnection()" style="display: none;">
+            <span class="material-icons" style="font-size: 1rem;">refresh</span>
+            Retry
+          </button>
+          <button class="btn btn-icon btn-ghost" onclick="window.app.checkConnection()">
+            <span class="material-icons">notifications</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-content">
+
+        <!-- SCREEN: Dashboard -->
+        <section id="screen-dashboard" class="screen active">
+          <div class="screen-title">
+            <h1>Practice Dashboard</h1>
+            <p>Efficiently manage dermatology consultations</p>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="material-icons stat-card-icon">people</span>
+              <div class="stat-card-label">Total Patients</div>
+              <div class="stat-card-value"><span id="metric-total-cases">0</span></div>
+              <span class="stat-card-change">
+                <span class="material-icons" style="font-size: 0.75rem;">arrow_upward</span> +12%
+              </span>
+            </div>
+            <div class="stat-card">
+              <span class="material-icons stat-card-icon">check_circle</span>
+              <div class="stat-card-label">Completed Cases</div>
+              <div class="stat-card-value"><span id="metric-completed-cases">0</span></div>
+            </div>
+            <div class="stat-card">
+              <span class="material-icons stat-card-icon">pending_actions</span>
+              <div class="stat-card-label">Awaiting AI Review</div>
+              <div class="stat-card-value text-error"><span id="metric-pending-cases">0</span></div>
+            </div>
+          </div>
+
+          <!-- Priority Actions -->
+          <div class="section-header">
+            <span class="material-icons text-primary">priority_high</span>
+            <h3>Priority Actions</h3>
+          </div>
+          <div class="action-grid">
+            <div class="action-card">
+              <div class="action-card-inner">
                 <div>
-                   <h3 style="margin: 0; font-weight: 600; color: var(--text-primary);">Clinical Workspace</h3>
+                  <div class="action-card-icon primary">
+                    <span class="material-icons">medical_services</span>
+                  </div>
+                  <h4>New Patient Diagnosis</h4>
+                  <p>Initiate a skin analysis session. Upload high-resolution clinical images for AI-assisted diagnostic scoring.</p>
                 </div>
-                <div style="display: flex; gap: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                    <span id="network-status">Status: 🟢 Online (Local)</span>
-                    <span id="header-date"></span>
-                </div>
-            </header>
-
-            <div class="workspace">
-              <div class="container">
-                
-                <!-- Global Stepper -->
-                <div id="workflow-stepper" class="stepper" style="display: none;">
-                  <div class="step" id="step-1"><div class="step-circle">1</div><div class="step-label">Intake</div></div>
-                  <div class="step" id="step-2"><div class="step-circle">2</div><div class="step-label">Assessment</div></div>
-                  <div class="step" id="step-3"><div class="step-circle">3</div><div class="step-label">Diagnosis</div></div>
-                  <div class="step" id="step-4"><div class="step-circle">4</div><div class="step-label">Treatment</div></div>
-                  <div class="step" id="step-5"><div class="step-circle">5</div><div class="step-label">SOAP</div></div>
-                </div>
-
-                <!-- SCREEN 0: Dashboard -->
-                <section id="screen-dashboard" class="screen">
-                  <div class="header">
-                    <h2>Practice Dashboard</h2>
-                    <p class="subtitle">Efficiently manage your dermatology consultations</p>
-                  </div>
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
-                      <div class="clinical-card" style="padding: 1.5rem; text-align: center;">
-                          <div style="font-size: 2rem; margin-bottom: 0.5rem;">👥</div>
-                          <h4 style="margin: 0; font-size: 1.5rem;" id="metric-total-cases">0</h4>
-                          <div class="subtitle" style="margin: 0;">Total Patients</div>
-                      </div>
-                      <div class="clinical-card" style="padding: 1.5rem; text-align: center;">
-                          <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
-                          <h4 style="margin: 0; font-size: 1.5rem;" id="metric-completed-cases">0</h4>
-                          <div class="subtitle" style="margin: 0;">Completed</div>
-                      </div>
-                      <div class="clinical-card" style="padding: 1.5rem; text-align: center;">
-                          <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏳</div>
-                          <h4 style="margin: 0; font-size: 1.5rem;" id="metric-pending-cases">0</h4>
-                          <div class="subtitle" style="margin: 0;">Awaiting AI</div>
-                      </div>
-                  </div>
-                  
-                  <div class="clinical-card">
-                      <h3>Quick Actions</h3>
-                      <div class="grid-cols-2">
-                          <button onclick="window.app.startNewDiagnosis()" class="btn btn-primary" style="padding: 2rem;">
-                             <span style="font-size: 1.5rem;">➕</span>
-                             <span>New Patient Diagnosis</span>
-                          </button>
-                          <button onclick="window.app.showHistory()" class="btn btn-secondary" style="padding: 2rem;">
-                             <span style="font-size: 1.5rem;">📋</span>
-                             <span>Review Clinical History</span>
-                          </button>
-                      </div>
-                  </div>
-                </section>
-
-                <!-- SCREEN 1: Patient Intake -->
-                <section id="screen-intake" class="screen active">
-                  <div class="header">
-                    <h2>Step 1: Patient Intake</h2>
-                    <p class="subtitle">Enter epidemiological and demographic context</p>
-                  </div>
-                  
-                  <div class="clinical-card">
-                    <div class="grid-cols-2">
-                      <div class="floating-group">
-                        <input type="number" id="patient_age" placeholder=" " min="0" max="120" required>
-                        <label>Patient Age * (0-120)</label>
-                      </div>
-                      <div class="floating-group">
-                        <input type="text" id="geographic_region" placeholder=" " required>
-                        <label>Geographic Region *</label>
-                      </div>
-                    </div>
-                    
-                    <div class="grid-cols-2">
-                        <div class="floating-group">
-                          <select id="skin_phototype" required>
-                            <option value="" disabled selected></option>
-                            <option value="Type I">Type I (Very Fair)</option>
-                            <option value="Type II">Type II (Fair)</option>
-                            <option value="Type III">Type III (Medium)</option>
-                            <option value="Type IV">Type IV (Olive/Light Brown)</option>
-                            <option value="Type V">Type V (Dark Brown)</option>
-                            <option value="Type VI">Type VI (Black)</option>
-                            <option value="UNKNOWN">Unknown / Not Tracked</option>
-                          </select>
-                          <label>Skin Phototype (Fitzpatrick) *</label>
-                        </div>
-                        <div class="floating-group">
-                          <input type="text" id="occupation" placeholder=" " required>
-                          <label>Occupation *</label>
-                        </div>
-                    </div>
-                  </div>
-
-                  <div style="display: flex; justify-content: flex-end;">
-                    <button onclick="window.app.goNext('screen-assessment')" class="btn btn-primary">Continue to Assessment</button>
-                  </div>
-                </section>
-
-                <!-- SCREEN 2: Clinical Assessment -->
-                <section id="screen-assessment" class="screen">
-                  <div class="header">
-                    <h2>Step 2: Clinical Assessment</h2>
-                    <p class="subtitle">Document physical exam and symptoms</p>
-                  </div>
-                  
-                  <div class="clinical-card" style="position: relative;">
-                    <div class="floating-group">
-                      <input type="text" id="complaint" placeholder=" " required>
-                      <label>Chief Complaint *</label>
-                    </div>
-                    <div class="floating-group">
-                      <textarea id="lesion" rows="3" placeholder=" "></textarea>
-                      <label>Lesion Description (Site, Color, Size, Texture)</label>
-                    </div>
-                    <div class="floating-group">
-                      <textarea id="symptoms" rows="2" placeholder=" "></textarea>
-                      <label>Associated Symptoms (Pruritus, Pain, Bleeding)</label>
-                    </div>
-                    <div class="floating-group">
-                      <input type="text" id="tests" placeholder=" ">
-                      <label>Available Test Results (e.g. Dermoscopy, Biopsy)</label>
-                    </div>
-                    
-                    <!-- Image Upload Section -->
-                    <div class="clinical-card" style="margin-top: 1rem; padding: 1rem; border: 2px dashed var(--border-subtle); border-radius: var(--radius-md);">
-                      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <span style="font-size: 1.5rem;">📷</span>
-                        <strong>Lesion Image (Optional)</strong>
-                      </div>
-                      <div id="image-upload-area" style="text-align: center; padding: 1rem;">
-                        <input type="file" id="lesion-image" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload(this)">
-                        <button onclick="document.getElementById('lesion-image').click()" class="btn btn-secondary btn-small" style="margin-bottom: 0.5rem;">
-                          📁 Upload Image
-                        </button>
-                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">Supports JPG, PNG, WebP (max 5MB)</p>
-                      </div>
-                      <div id="image-preview-container" style="display: none; margin-top: 1rem;">
-                        <div style="position: relative; display: inline-block;">
-                          <img id="image-preview" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-                          <button onclick="window.app.removeImage()" style="position: absolute; top: 8px; right: 8px; background: rgba(220,53,69,0.9); color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px;">×</button>
-                        </div>
-                        <p id="image-info" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;"></p>
-                      </div>
-                    </div>
-
-                    <div class="loading" id="loading" style="display: none;">
-                      <div class="spinner"></div>
-                      <p id="analysis-status" class="loading-text">Preparing analysis...</p>
-                      <div class="progress-container"><div id="analysis-progress" class="progress-bar"></div></div>
-                      <p class="estimated-time" id="estimated-time">Estimated time: 30-60 seconds</p>
-                    </div>
-                  </div>
-
-                  <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button onclick="window.app.goBack('screen-intake')" class="btn btn-secondary">Back</button>
-                    <button onclick="window.app.analyzeCase()" class="btn btn-primary" id="analyze-btn">Start AI Analysis</button>
-                  </div>
-                </section>
-
-                <!-- SCREEN 3: AI Diagnosis -->
-                <section id="screen-diagnosis" class="screen">
-                  <div class="header">
-                    <h2>Step 3: AI Diagnosis Results</h2>
-                    <p class="subtitle">AI-assisted differential diagnosis and reasoning</p>
-                  </div>
-
-                  <div class="clinical-alert alert-warning">
-                    <strong>⚠️ Clinical Safety Notice</strong>
-                    <span>Results are AI-generated suggestions for decision support only. Confirm with clinical findings before treatment.</span>
-                  </div>
-
-                  <!-- Triage Alert Box -->
-                  <div id="triage-alert" class="clinical-alert" style="display: none;">
-                    <strong>🚩 Triage Recommendation</strong>
-                    <span id="triage-text"></span>
-                  </div>
-
-                  <div id="diagnosis-structured">
-                      <div class="grid-cols-2">
-                          <div class="clinical-card" style="padding: 1.5rem;">
-                              <h4 style="color: var(--medical-blue);"><span style="margin-right:0.5rem">🩺</span>Possible Diagnoses</h4>
-                              <div id="box-diagnoses" class="rich-text"></div>
-                          </div>
-                          <div class="clinical-card" style="padding: 1.5rem;">
-                              <h4 style="color: var(--medical-blue);"><span style="margin-right:0.5rem">🧠</span>Clinical Reasoning</h4>
-                              <div id="box-reasoning" class="rich-text"></div>
-                          </div>
-                      </div>
-                      <div class="grid-cols-2">
-                          <div class="clinical-card" style="padding: 1.5rem;">
-                              <h4 style="color: var(--medical-blue);"><span style="margin-right:0.5rem">🔬</span>Recommended Tests</h4>
-                              <div id="box-tests" class="rich-text"></div>
-                          </div>
-                          <div class="clinical-card" style="padding: 1.5rem;">
-                              <h4 style="color: var(--medical-blue);"><span style="margin-right:0.5rem">🏥</span>Referral Advice</h4>
-                              <div id="box-referral" class="rich-text"></div>
-                          </div>
-                      </div>
-                  </div>
-
-                  <div id="diagnosis-fallback" style="display: none;" class="clinical-card">
-                    <div id="diagnosis-result"></div>
-                  </div>
-
-                  <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button onclick="window.app.goBack('screen-assessment')" class="btn btn-secondary">Back to Assessment</button>
-                    <button onclick="window.app.goNext('screen-treatment')" class="btn btn-primary">Proceed to Treatment Plan</button>
-                  </div>
-                </section>
-
-                <!-- SCREEN 4: Treatment Plan -->
-                <section id="screen-treatment" class="screen">
-                  <div class="header">
-                    <h2>Step 4: Treatment Plan</h2>
-                    <p class="subtitle">Evidence-based management suggestions</p>
-                  </div>
-
-                  <div class="clinical-card">
-                    <h4 style="color: var(--medical-blue);">Therapeutic Suggestions</h4>
-                    <div id="treatment-result" class="rich-text" style="background: #f8fafc; padding: 1.5rem; border-radius: 8px;"></div>
-                  </div>
-
-                  <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button onclick="window.app.goBack('screen-diagnosis')" class="btn btn-secondary">Previous Step</button>
-                    <button onclick="window.app.prepareSOAP()" class="btn btn-primary">Generate Final SOAP Note</button>
-                  </div>
-                </section>
-
-                <!-- SCREEN 5: SOAP Note -->
-                <section id="screen-soap" class="screen">
-                  <div class="header" style="display: flex; justify-content: space-between; align-items: flex-end;">
-                    <div>
-                        <h2>Step 5: Clinical Note (SOAP)</h2>
-                        <p class="subtitle">Structured clinical documentation for your EHR</p>
-                    </div>
-                    <div style="margin-bottom: 2rem;">
-                         <button onclick="window.app.copySOAPNote()" class="btn btn-secondary btn-small">📋 Copy</button>
-                         <button onclick="window.app.downloadSOAPNote()" class="btn btn-secondary btn-small">💾 TXT</button>
-                         <button onclick="window.app.downloadSOAPPDF()" class="btn btn-primary btn-small" style="background: #e11d48; border-color: #e11d48;">📄 PDF</button>
-                    </div>
-                  </div>
-
-                  <div class="clinical-card" style="position: relative; min-height: 300px;">
-                    <div class="loading" id="soap-loading" style="display: none;">
-                        <div class="spinner"></div>
-                        <p style="margin-top: 1rem;">Formatting clinical documentation...</p>
-                    </div>
-                    <div id="soap-result" class="rich-text" style="line-height: 1.6;"></div>
-                  </div>
-
-                  <div style="display: flex; justify-content: space-between;">
-                    <button onclick="window.app.goBack('screen-treatment')" class="btn btn-secondary">Back to Plan</button>
-                    <button onclick="window.app.finishCase()" class="btn btn-success">Save & Finish Case</button>
-                  </div>
-                </section>
-
-                <!-- SCREEN 6: Case History -->
-                <section id="screen-history" class="screen">
-                  <div class="header">
-                    <h2>Clinical Case History</h2>
-                    <p class="subtitle">Search and manage analyzed patient cases</p>
-                  </div>
-
-                  <div class="search-container">
-                    <span>🔍</span>
-                    <input type="text" id="history-search" placeholder="Search by complaint, region or age..." oninput="window.app.filterHistory()">
-                  </div>
-                  
-                  <div id="history-container">
-                     <!-- Populated by JS -->
-                  </div>
-
-                  <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
-                    <button onclick="window.app.startNewDiagnosis()" class="btn btn-primary">Start New Diagnosis</button>
-                  </div>
-                </section>
-
-                <!-- SCREEN 7: Case Details Modal (Full Screen) -->
-                <section id="screen-case-details" class="screen">
-                  <div class="header" style="display: flex; justify-content: space-between;">
-                    <div>
-                        <h2>Clinical Case Review</h2>
-                        <p class="subtitle" id="details-date"></p>
-                    </div>
-                     <div style="margin-bottom: 2rem; display: flex; gap: 0.75rem;">
-                          <button onclick="window.app.copyCaseSummary()" class="btn btn-secondary btn-small">📋 Copy Summary</button>
-                          <button onclick="window.app.exportCasePDF()" class="btn btn-primary btn-small">📄 Export PDF</button>
-                          <button onclick="window.app.deleteCurrentCase()" class="btn btn-danger btn-small">🗑️</button>
-                          <button onclick="window.app.showHistory()" class="btn btn-secondary btn-small">Close</button>
-                     </div>
-                  </div>
-
-                  <div class="grid-cols-2">
-                      <div class="clinical-card" style="padding: 1.5rem;">
-                          <h4>Patient Demographics</h4>
-                          <div id="details-demographics" class="rich-text"></div>
-                      </div>
-                      <div class="clinical-card" style="padding: 1.5rem;">
-                          <h4>Initial Assessment</h4>
-                          <div id="details-assessment" class="rich-text"></div>
-                      </div>
-                  </div>
-
-                  <div id="details-structured">
-                      <div class="clinical-card">
-                          <h4 style="color: var(--medical-blue);">AI Analysis & Inference</h4>
-                          <div class="grid-cols-2" style="margin-top: 1rem;">
-                              <div>
-                                  <h5>Possible Diagnoses</h5>
-                                  <div id="details-diagnoses" class="rich-text" style="font-size: 0.9rem;"></div>
-                              </div>
-                              <div>
-                                  <h5>Recommended Tests</h5>
-                                  <div id="details-tests" class="rich-text" style="font-size: 0.9rem;"></div>
-                              </div>
-                          </div>
-                          <div style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
-                              <h5>Clinical Reasoning</h5>
-                              <div id="details-reasoning" class="rich-text" style="font-size: 0.9rem;"></div>
-                          </div>
-                          <div style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
-                              <h5>Referral & Follow-up</h5>
-                              <div id="details-referral" class="rich-text" style="font-size: 0.9rem;"></div>
-                          </div>
-                      </div>
-
-                      <div class="clinical-card" id="details-treatment-box" style="display: none;">
-                          <h4 style="color: var(--medical-blue);">Therapeutic Suggestions</h4>
-                          <div id="details-treatment" class="rich-text"></div>
-                      </div>
-
-                      <div class="clinical-card" id="details-soap-box" style="display: none;">
-                          <h4 style="color: var(--medical-blue);">Final SOAP Documentation</h4>
-                          <div id="details-soap" class="rich-text" style="font-family: 'Courier New', monospace; background: #f1f5f9; padding: 1rem; border-radius: 8px;"></div>
-                      </div>
-                  </div>
-
-                  <div id="details-fallback" style="display: none;" class="clinical-card">
-                      <h4 style="color: var(--medical-blue);">Raw AI Analysis</h4>
-                      <div id="details-raw" class="rich-text"></div>
-                  </div>
-
-                  <div id="details-retry-container" style="display: none; margin-top: 1rem;">
-                      <div class="clinical-alert alert-info">
-                          <span>This analysis was interrupted or is pending.</span>
-                          <button onclick="window.app.retryPendingAnalysis()" class="btn btn-primary btn-small" style="margin-top: 0.5rem; width: fit-content;">Retry Analysis</button>
-                      </div>
-                  </div>
-                </section>
-
-                <!-- SCREEN 8: Drug Checker -->
-                <section id="screen-drug-checker" class="screen">
-                  <div class="header">
-                    <h2>Drug Interaction Checker</h2>
-                    <p class="subtitle">Pharmacological safety verification tool</p>
-                  </div>
-                  <div class="clinical-card">
-                    <div class="floating-group">
-                      <textarea id="drug-input" rows="4" placeholder=" "></textarea>
-                      <label>Medications list (one per line or comma separated)</label>
-                    </div>
-                    
-                    <div class="loading" id="drug-loading" style="display: none;">
-                       <div class="spinner pulse"></div>
-                       <p style="margin-top: 1rem;">AI Pharmacological Analysis...</p>
-                    </div>
-
-                    <div id="drug-result-container" style="display: none; margin-top: 2rem;">
-                      <div class="clinical-alert alert-info" style="border-radius: 8px; font-size: 1.1rem; font-weight: 600;">Pharmacology Report</div>
-                      <div id="drug-result" class="rich-text clinical-card" style="background: #f8fafc;"></div>
-                      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                         <button onclick="window.app.copyDrugAnalysis()" class="btn btn-secondary btn-small">📋 Copy</button>
-                         <button onclick="window.app.downloadDrugPDF()" class="btn btn-primary btn-small" style="background: #e11d48; border-color: #e11d48;">📄 PDF Report</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button onclick="window.app.showScreen('screen-dashboard')" class="btn btn-secondary">Dashboard</button>
-                    <button onclick="window.app.checkDrugInteractions()" class="btn btn-primary" id="check-drug-btn">Analyze Combinations</button>
-                  </div>
-                </section>
-
-                <!-- SCREEN 9: Settings -->
-                <section id="screen-settings" class="screen">
-                   <div class="header">
-                    <h2>Clinical Settings</h2>
-                    <p class="subtitle">System and configuration management</p>
-                   </div>
-                   
-                   <!-- AI Model Settings -->
-                   <div class="clinical-card">
-                     <h3 style="margin-bottom: 1rem;">🤖 AI Model Configuration</h3>
-                     <div class="floating-group">
-                       <input type="text" id="settings-model-name" placeholder=" " value="phi3">
-                       <label>Model Name</label>
-                     </div>
-                     <div class="floating-group">
-                       <input type="text" id="settings-api-url" placeholder=" " value="http://127.0.0.1:11434">
-                       <label>Ollama API URL</label>
-                     </div>
-                     <button onclick="window.app.testAIConnection()" class="btn btn-secondary btn-small" style="margin-top: 0.5rem;">
-                       🔗 Test Connection
-                     </button>
-                   </div>
-                   
-                   <!-- Theme Settings -->
-                   <div class="clinical-card">
-                     <h3 style="margin-bottom: 1rem;">🎨 Appearance</h3>
-                     <div style="display: flex; align-items: center; justify-content: space-between;">
-                       <div>
-                         <strong>Dark Mode</strong>
-                         <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">Enable dark theme for low-light environments</p>
-                       </div>
-                       <label class="toggle-switch">
-                         <input type="checkbox" id="settings-dark-mode" onchange="window.app.toggleDarkMode(this)">
-                         <span class="slider"></span>
-                       </label>
-                     </div>
-                   </div>
-                   
-                   <!-- Data Management -->
-                   <div class="clinical-card">
-                     <h3 style="margin-bottom: 1rem;">💾 Data Management</h3>
-                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                       <div style="display: flex; align-items: center; justify-content: space-between;">
-                         <div>
-                           <strong>Case History</strong>
-                           <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;" id="case-count">Loading...</p>
-                         </div>
-                         <button onclick="window.app.exportAllCases()" class="btn btn-secondary btn-small">📤 Export</button>
-                       </div>
-                       <div style="display: flex; align-items: center; justify-content: space-between;">
-                         <div>
-                           <strong>Clear Cache</strong>
-                           <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">Clear AI response cache</p>
-                         </div>
-                         <button onclick="window.app.clearCache()" class="btn btn-secondary btn-small">🗑️ Clear</button>
-                       </div>
-                       <div style="display: flex; align-items: center; justify-content: space-between;">
-                         <div>
-                           <strong>Delete All Cases</strong>
-                           <p style="font-size: 0.85rem; color: var(--error-text); margin: 0;">Permanently delete all stored cases</p>
-                         </div>
-                         <button onclick="window.app.confirmDeleteAllCases()" class="btn btn-small" style="background: #dc3545; color: white; border-color: #dc3545;">⚠️ Delete All</button>
-                       </div>
-                     </div>
-                   </div>
-                   
-                   <!-- About -->
-                   <div class="clinical-card">
-                     <h3 style="margin-bottom: 1rem;">ℹ️ About</h3>
-                     <p><strong>DermaCare AI</strong> v1.0.0</p>
-                     <p style="font-size: 0.85rem; color: var(--text-secondary);">Dermatology Clinical Decision Support System</p>
-                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">Powered by Ollama LLM • Offline-first PWA</p>
-                   </div>
-                   
-                   <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                      <button onclick="window.app.showScreen('screen-dashboard')" class="btn btn-primary">💾 Save & Exit</button>
-                   </div>
-                 </section>
-
+                <button class="btn btn-primary" onclick="window.app.startNewDiagnosis()">
+                  Start Clinical Scan
+                  <span class="material-icons">arrow_forward</span>
+                </button>
               </div>
             </div>
-        </main>
-    </div>
+            <div class="action-card">
+              <div class="action-card-inner">
+                <div>
+                  <div class="action-card-icon secondary">
+                    <span class="material-icons">folder_open</span>
+                  </div>
+                  <h4>Review Clinical History</h4>
+                  <p>Access historical patient records, AI report archives, and cross-reference clinical longitudinal data.</p>
+                </div>
+                <button class="btn btn-secondary" onclick="window.app.showHistory()">
+                  Browse Case Archive
+                  <span class="material-icons">history</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
-    <!-- Core Application Script -->
-    <script src="storage.js"></script>
-    <script src="app.js"></script>
-    
-    <script>
-        // Set current date in header
-        document.getElementById('header-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        
-        // Initialize dark mode from localStorage on page load
-        (function initTheme() {
-            const theme = localStorage.getItem('dermacare-theme');
-            if (theme === 'dark') {
-                document.body.classList.add('dark-mode');
-                const checkbox = document.getElementById('settings-dark-mode');
-                if (checkbox) checkbox.checked = true;
-            }
-        })();
-    </script>
+          <!-- Recent Cases -->
+          <div class="bento-grid">
+            <div class="bento-item">
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">
+                  <span class="material-icons">analytics</span>
+                  Recent AI Findings
+                </h3>
+                <button class="btn btn-ghost btn-small">View All</button>
+              </div>
+              <div class="recent-cases-list" id="recent-cases-list">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+            <div class="ai-insight-card">
+              <div class="icon">
+                <span class="material-icons">psychology</span>
+                AI Performance
+              </div>
+              <h6>Your diagnostic precision has increased by 4% this month.</h6>
+              <div class="ai-insight-card-footer">
+                <p>You've confirmed 92% of AI-suggested diagnoses without clinical revision.</p>
+                <button class="btn btn-secondary" style="background: rgba(255,255,255,0.2); color: var(--on-tertiary-container);">
+                  Efficiency Insights
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SCREEN: Patient Intake -->
+        <section id="screen-intake" class="screen hidden">
+          <!-- Stepper -->
+          <div class="stepper">
+            <div class="stepper-item">
+              <div class="stepper-circle active">1</div>
+              <span class="stepper-label active">Intake</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">2</div>
+              <span class="stepper-label">Assessment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">3</div>
+              <span class="stepper-label">Diagnosis</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">4</div>
+              <span class="stepper-label">Treatment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">5</div>
+              <span class="stepper-label">SOAP</span>
+            </div>
+          </div>
+
+          <div class="screen-title">
+            <h1>Patient Demographics</h1>
+            <p>Initial collection of baseline patient data. This information helps calibrate diagnostic AI models.</p>
+          </div>
+
+          <div class="card">
+            <form id="intake-form">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Patient Age</label>
+                  <input type="number" id="patient_age" class="form-input" placeholder="Enter age in years" min="0" max="120" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Geographic Region</label>
+                  <input type="text" id="geographic_region" class="form-input" placeholder="e.g. North America, Europe" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Skin Phototype</label>
+                  <select id="skin_phototype" class="form-select" required>
+                    <option value="">Select Fitzpatrick Scale</option>
+                    <option value="Type I">Type I - Always burns, never tans</option>
+                    <option value="Type II">Type II - Usually burns, tans minimally</option>
+                    <option value="Type III">Type III - Sometimes mild burn, tans uniformly</option>
+                    <option value="Type IV">Type IV - Burns minimally, tans always</option>
+                    <option value="Type V">Type V - Very rarely burns, tans very easily</option>
+                    <option value="Type VI">Type VI - Never burns, deeply pigmented</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Occupation</label>
+                  <input type="text" id="occupation" class="form-input" placeholder="Current professional role">
+                </div>
+              </div>
+
+              <div class="info-box" style="margin-top: 2rem;">
+                <div class="info-box-icon">
+                  <span class="material-icons">info</span>
+                </div>
+                <div>
+                  <div class="info-box-title">Environmental Context</div>
+                  <div class="info-box-text">Geographic region and occupation are critical for assessing UV exposure risk levels and potential environmental triggers.</div>
+                </div>
+              </div>
+
+              <div class="footer-actions">
+                <button type="button" class="btn btn-secondary" onclick="window.app.showScreen('screen-dashboard')">Save as Draft</button>
+                <button type="button" class="btn btn-primary" onclick="window.app.goNext('screen-assessment')">
+                  Continue to Assessment
+                  <span class="material-icons">arrow_forward</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- SCREEN: Clinical Assessment -->
+        <section id="screen-assessment" class="screen hidden">
+          <!-- Stepper -->
+          <div class="stepper">
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Intake</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle active">2</div>
+              <span class="stepper-label active">Assessment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">3</div>
+              <span class="stepper-label">Diagnosis</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">4</div>
+              <span class="stepper-label">Treatment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">5</div>
+              <span class="stepper-label">SOAP</span>
+            </div>
+          </div>
+
+          <div class="screen-title">
+            <h1>Clinical Assessment</h1>
+            <p>Refine patient observations and upload dermatological imagery for AI-assisted analysis.</p>
+          </div>
+
+          <div class="card">
+            <div class="form-group">
+              <label class="form-label">Chief Complaint</label>
+              <textarea id="complaint" class="form-textarea" rows="3" placeholder="Describe the primary reason for visit and symptom duration..." required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Lesion Description</label>
+              <textarea id="lesion" class="form-textarea" rows="3" placeholder="Include morphology, color, borders, and anatomical location..." required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Associated Symptoms</label>
+              <div class="checkbox-grid">
+                <div class="checkbox-item">
+                  <input type="checkbox" id="symptom-itching" value="itching">
+                  <label for="symptom-itching">Pruritus</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="symptom-pain" value="pain">
+                  <label for="symptom-pain">Tenderness</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="symptom-growth" value="growth">
+                  <label for="symptom-growth">Recent Growth</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="symptom-bleeding" value="bleeding">
+                  <label for="symptom-bleeding">Bleeding</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Available Test Results</label>
+              <textarea id="tests" class="form-textarea" rows="3" placeholder="Paste dermoscopy notes, biopsy summaries, or lab values here..."></textarea>
+            </div>
+
+            <!-- Image Upload -->
+            <div class="form-group">
+              <label class="form-label">Upload Clinical Photos</label>
+              <div class="image-upload" onclick="document.getElementById('lesion-image').click()">
+                <input type="file" id="lesion-image" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload(this)">
+                <div class="image-upload-icon">
+                  <span class="material-icons">add_a_photo</span>
+                </div>
+                <div class="image-upload-title">Drop DICOM/JPEG files here</div>
+                <div class="image-upload-subtitle">Supports high-res macro and dermoscopy</div>
+              </div>
+              <div id="image-preview-container" class="hidden" style="margin-top: 1rem;">
+                <img id="image-preview" style="max-width: 100%; max-height: 200px; border-radius: 0.75rem;">
+                <button class="btn btn-secondary btn-small" onclick="window.app.removeImage()">Remove</button>
+              </div>
+            </div>
+
+            <!-- Lesion History -->
+            <div class="form-group" style="margin-top: 2rem; padding: 1.5rem; background: var(--surface-container-low); border-radius: 0.75rem;">
+              <label class="form-label">Lesion History (AI Metadata Weighting)</label>
+              <p style="font-size: 0.75rem; color: var(--on-surface-variant); margin-bottom: 1rem;">This information helps the AI adjust malignancy risk assessment.</p>
+              <div class="form-grid">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Duration of Lesion</label>
+                  <select id="history_duration" class="form-select">
+                    <option value="">Select duration</option>
+                    <option value="New (<1 month)">New (&lt;1 month)</option>
+                    <option value="Recent (1-6 months)">Recent (1-6 months)</option>
+                    <option value="Established (6 months - 2 years)">Established (6 months - 2 years)</option>
+                    <option value="Long-standing (2-10 years)">Long-standing (2-10 years)</option>
+                    <option value="Very old (>10 years)">Very old (&gt;10 years)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Change Pattern</label>
+                  <select id="change_pattern" class="form-select">
+                    <option value="">Select pattern</option>
+                    <option value="Stable - No Change">Stable - No Change</option>
+                    <option value="Slowly Growing">Slowly Growing</option>
+                    <option value="Rapidly Growing">Rapidly Growing</option>
+                    <option value="Changed Color">Changed Color</option>
+                    <option value="Changed Shape">Changed Shape</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 1rem; margin-bottom: 0;">
+                <textarea id="lesion_history" class="form-textarea" rows="2" placeholder="Additional history notes (previous treatments, family history)"></textarea>
+              </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading-state" class="loading-screen hidden" style="min-height: auto; padding: 2rem 0;">
+              <div class="loading-spinner"></div>
+              <div class="loading-title">Analyzing lesion morphology...</div>
+              <div class="loading-subtitle">
+                <span class="material-icons">verified</span>
+                Comparing against 2.5M clinical cases
+              </div>
+              <div class="progress-bar">
+                <div class="progress-bar-fill" id="analysis-progress-bar" style="width: 0%;"></div>
+              </div>
+              <div class="progress-info">
+                <span id="progress-percent">AI Confidence Mapping: 0%</span>
+                <span id="est-time">Est. 15-20s</span>
+              </div>
+            </div>
+
+            <div class="footer-actions">
+              <button type="button" class="btn btn-secondary" onclick="window.app.goBack('screen-intake')">
+                <span class="material-icons">arrow_back</span>
+                Back to Intake
+              </button>
+              <button type="button" class="btn btn-primary" id="analyze-btn" onclick="window.app.analyzeCase()">
+                <span class="material-icons filled">auto_awesome</span>
+                Start AI Analysis
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- SCREEN: Diagnosis Results -->
+        <section id="screen-diagnosis" class="screen hidden">
+          <!-- Stepper -->
+          <div class="stepper">
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Intake</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Assessment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle active">3</div>
+              <span class="stepper-label active">Diagnosis</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">4</div>
+              <span class="stepper-label">Treatment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">5</div>
+              <span class="stepper-label">SOAP</span>
+            </div>
+          </div>
+
+          <div class="screen-title">
+            <h1>Diagnostic Probability</h1>
+            <p>AI-assisted differential diagnosis and clinical reasoning</p>
+          </div>
+
+          <!-- Safety Alert -->
+          <div class="safety-alert">
+            <span class="material-icons">warning</span>
+            <div class="safety-alert-content">
+              <span class="safety-alert-title">Diagnostic aid only</span>
+              <span class="safety-alert-text">This AI assessment is a clinical decision support tool and does not replace professional medical judgment.</span>
+            </div>
+          </div>
+
+          <div class="diagnosis-grid">
+            <!-- Left Column: Diagnoses -->
+            <div>
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <span class="material-icons">biotech</span>
+                    Differential Diagnoses
+                  </h3>
+                </div>
+                <div id="diagnosis-list">
+                  <div class="empty-state">
+                    <span class="material-icons" style="font-size: 2.5rem; color: var(--outline-variant);">medical_information</span>
+                    <p>Run AI analysis to see differential diagnoses</p>
+                  </div>
+                </div>
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(193,198,212,0.15);">
+                  <div class="ai-insight-card" style="padding: 1rem;">
+                    <div class="icon" style="font-size: 0.625rem;">
+                      <span class="material-icons" style="font-size: 1rem;">verified</span>
+                      AI Confidence
+                    </div>
+                    <p id="ai-confidence-text" style="font-size: 0.875rem;">Based on Monte Carlo analysis</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Analysis -->
+            <div>
+              <div class="analysis-card">
+                <h3>
+                  <span class="material-icons">query_stats</span>
+                  Lesion Analysis
+                </h3>
+                <div id="lesion-analysis-list">
+                  <div class="empty-state">
+                    <p>Lesion analysis will appear here after AI analysis</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="analysis-card">
+                <h3>
+                  <span class="material-icons">science</span>
+                  Recommended Tests
+                </h3>
+                <div id="recommended-tests-list">
+                  <div class="empty-state">
+                    <p>Recommended tests will appear after analysis</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="analysis-card">
+                <h3>
+                  <span class="material-icons">psychology</span>
+                  Clinical Reasoning
+                </h3>
+                <div id="clinical-reasoning">
+                  <div class="empty-state">
+                    <p>Clinical reasoning will appear here after AI analysis</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer-actions">
+            <button class="btn btn-secondary" onclick="window.app.goBack('screen-assessment')">
+              <span class="material-icons">arrow_back</span>
+              Back to Assessment
+            </button>
+            <button class="btn btn-primary" onclick="window.app.goNext('screen-treatment')">
+              Proceed to Treatment
+              <span class="material-icons">arrow_forward</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- SCREEN: Treatment Plan -->
+        <section id="screen-treatment" class="screen hidden">
+          <!-- Stepper -->
+          <div class="stepper">
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Intake</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Assessment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Diagnosis</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle active">4</div>
+              <span class="stepper-label active">Treatment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle pending">5</div>
+              <span class="stepper-label">SOAP</span>
+            </div>
+          </div>
+
+          <div class="screen-title">
+            <h1>Treatment Formulation</h1>
+            <p>Based on diagnostic results, the following pharmacological regimen is recommended.</p>
+          </div>
+
+          <div id="treatment-list">
+            <!-- Populated by JS -->
+          </div>
+
+          <div class="footer-actions">
+            <button class="btn btn-secondary" onclick="window.app.goBack('screen-diagnosis')">
+              <span class="material-icons">arrow_back</span>
+              Previous Step
+            </button>
+            <button class="btn btn-primary" onclick="window.app.prepareSOAP()">
+              Generate SOAP Report
+              <span class="material-icons">auto_awesome</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- SCREEN: SOAP Report -->
+        <section id="screen-soap" class="screen hidden">
+          <!-- Stepper -->
+          <div class="stepper">
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Intake</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Assessment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Diagnosis</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle completed">
+                <span class="material-icons" style="font-size: 0.875rem;">check</span>
+              </div>
+              <span class="stepper-label">Treatment</span>
+            </div>
+            <div class="stepper-line"></div>
+            <div class="stepper-item">
+              <div class="stepper-circle active">5</div>
+              <span class="stepper-label active">SOAP</span>
+            </div>
+          </div>
+
+          <div class="screen-title">
+            <h1>SOAP Report Generation</h1>
+            <p>AI-generated clinical documentation based on diagnostic results and patient history.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; background: var(--surface-container-low); margin: -2rem -2rem 2rem -2rem; padding: 1.5rem 2rem; border-radius: 0.75rem 0.75rem 0 0;">
+              <h3 class="card-title">
+                <span class="material-icons filled">description</span>
+                Final Clinical Summary
+              </h3>
+              <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary btn-small" onclick="window.app.copySOAPNote()">
+                  <span class="material-icons">content_copy</span>
+                  Copy
+                </button>
+                <button class="btn btn-secondary btn-small" onclick="window.app.downloadSOAPNote()">
+                  <span class="material-icons">file_download</span>
+                  TXT
+                </button>
+                <button class="btn btn-secondary btn-small" onclick="window.app.downloadSOAPPDF()">
+                  <span class="material-icons">picture_as_pdf</span>
+                  PDF
+                </button>
+              </div>
+            </div>
+
+            <div id="soap-content">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div class="footer-actions">
+            <button class="btn btn-secondary" onclick="window.app.goBack('screen-treatment')">
+              <span class="material-icons">arrow_back</span>
+              Previous: Review Results
+            </button>
+            <button class="btn btn-primary" onclick="window.app.finishCase()">
+              Save & Finish Case
+              <span class="material-icons">check_circle</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- SCREEN: Case History -->
+        <section id="screen-history" class="screen hidden">
+          <div class="screen-title">
+            <h1>Clinical Case History</h1>
+            <p>Manage and review longitudinal dermatological data and AI-assisted diagnostic reports.</p>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 2rem;">
+            <button class="btn btn-primary" onclick="window.app.startNewDiagnosis()">
+              <span class="material-icons">add</span>
+              Start New Diagnosis
+            </button>
+          </div>
+
+          <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+            <div style="flex: 1;">
+              <input type="text" id="history-search" class="form-input" placeholder="Search case archives..." oninput="window.app.filterHistory()">
+            </div>
+          </div>
+
+          <div id="history-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+            <!-- Populated by JS -->
+          </div>
+
+          <div style="text-align: center; margin-top: 3rem; color: var(--on-surface-variant);">
+            <p id="history-count">Showing 0 clinical cases</p>
+          </div>
+        </section>
+
+        <!-- SCREEN: Drug Checker -->
+        <section id="screen-drug-checker" class="screen hidden">
+          <div class="screen-title">
+            <h1>Drug Interaction Analysis</h1>
+            <p>Cross-reference multiple topical and systemic medications for contraindications.</p>
+          </div>
+
+          <div class="card">
+            <div class="form-group">
+              <label class="form-label">Input Medications (Comma Separated)</label>
+              <textarea id="drug-input" class="form-textarea" rows="4" placeholder="e.g., Clotrimazole, Hydrocortisone, Lithium..."></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+              <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--on-surface-variant); font-size: 0.75rem;">
+                <span class="material-icons">info</span>
+                Supports 50,000+ FDA-approved formulations.
+              </div>
+              <button class="btn btn-primary" id="check-drug-btn" onclick="window.app.checkDrugInteractions()">
+                Analyze Combinations
+                <span class="material-icons filled">auto_awesome</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="drug-result-container" class="hidden" style="margin-top: 2rem;">
+            <!-- Populated by JS -->
+          </div>
+
+          <div style="margin-top: 2rem;">
+            <button class="btn btn-secondary" onclick="window.app.showScreen('screen-dashboard')">
+              <span class="material-icons">arrow_back</span>
+              Back to Dashboard
+            </button>
+          </div>
+        </section>
+
+        <!-- SCREEN: Settings -->
+        <section id="screen-settings" class="screen hidden">
+          <div class="screen-title">
+            <h1>System Configuration</h1>
+            <p>Manage clinical AI parameters, security protocols, and visual preferences.</p>
+          </div>
+
+          <div class="settings-grid">
+            <!-- AI Model Config -->
+            <div class="settings-section">
+              <div class="settings-section-header">
+                <div class="settings-section-icon primary">
+                  <span class="material-icons">psychology</span>
+                </div>
+                <div>
+                  <h3 class="settings-section-title">AI Model Config</h3>
+                  <p class="settings-section-desc">Configure the neural engine for lesion classification.</p>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Model Name</label>
+                  <input type="text" id="settings-model-name" class="form-input" value="phi3">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Inference Mode</label>
+                  <select id="settings-inference" class="form-select">
+                    <option value="fp16">FP16 (High Performance)</option>
+                    <option value="fp32">FP32 (Clinical Max)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">API URL Endpoint</label>
+                <input type="text" id="settings-api-url" class="form-input" value="http://localhost:11434" style="font-family: monospace; color: var(--primary);">
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--surface-container);">
+                <span style="font-size: 0.75rem; color: var(--on-surface-variant);">Last model validation: <span id="last-validation">Never</span></span>
+                <button class="btn btn-primary" onclick="window.app.testAIConnection()">
+                  Run Diagnostics
+                </button>
+              </div>
+            </div>
+
+            <!-- Appearance -->
+            <div class="settings-section">
+              <div class="settings-section-header">
+                <div class="settings-section-icon secondary">
+                  <span class="material-icons">palette</span>
+                </div>
+                <div>
+                  <h3 class="settings-section-title">Appearance</h3>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;">
+                <div>
+                  <p class="font-semibold" style="font-size: 0.875rem;">Interface Theme</p>
+                  <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Clinical white.</p>
+                </div>
+                <div style="display: flex; background: var(--surface-container); padding: 0.25rem; border-radius: 9999px;">
+                  <button class="btn btn-icon" style="background: white; border-radius: 9999px;">
+                    <span class="material-icons">light_mode</span>
+                  </button>
+                  <button class="btn btn-icon" style="border-radius: 9999px;">
+                    <span class="material-icons">dark_mode</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Data Management -->
+          <div class="settings-section" style="margin-top: 2rem;">
+            <div class="settings-section-header">
+              <div class="settings-section-icon" style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; background: var(--surface-container-highest); display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons">database</span>
+              </div>
+              <div>
+                <h3 class="settings-section-title">Data Management</h3>
+                <p class="settings-section-desc">Manage local storage and patient data privacy.</p>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+              <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                  <div style="width: 2.5rem; height: 2.5rem; background: var(--surface-container); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span class="material-icons">cleaning_services</span>
+                  </div>
+                  <div>
+                    <p style="font-weight: 600; font-size: 0.875rem;">Clear Workspace Cache</p>
+                    <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Removes temporary image data.</p>
+                  </div>
+                </div>
+                <button class="btn btn-secondary btn-small" onclick="window.app.clearCache()">Clear</button>
+              </div>
+              <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(186,26,26,0.1);">
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                  <div style="width: 2.5rem; height: 2.5rem; background: var(--error-container); color: var(--on-error-container); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span class="material-icons">delete_forever</span>
+                  </div>
+                  <div>
+                    <p style="font-weight: 600; font-size: 0.875rem; color: var(--error);">Purge Local Records</p>
+                    <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Delete all cases from this machine.</p>
+                  </div>
+                </div>
+                <button class="btn btn-secondary btn-small" style="color: var(--error);" onclick="window.app.confirmDeleteAllCases()">Delete All</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- About -->
+          <div style="text-align: center; padding: 3rem 0; border-top: 1px solid rgba(193,198,212,0.2); margin-top: 2rem;">
+            <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 1rem;">
+              <div style="width: 3rem; height: 3rem; background: var(--on-surface); color: white; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons" style="font-size: 1.5rem;">science</span>
+              </div>
+              <div>
+                <h4 style="font-weight: 700; color: var(--on-surface);">DermaCare AI Core</h4>
+                <p style="font-size: 0.875rem; color: var(--on-surface-variant);">Enterprise Build v1.0.0</p>
+              </div>
+              <div style="display: flex; gap: 0.75rem;">
+                <span style="padding: 0.25rem 0.75rem; background: var(--surface-container-highest); font-size: 0.625rem; font-weight: 700; color: var(--on-surface-variant); border-radius: 9999px; text-transform: uppercase;">HIPAA Compliant</span>
+                <span style="padding: 0.25rem 0.75rem; background: rgba(0,134,92,0.1); font-size: 0.625rem; font-weight: 700; color: var(--tertiary-container); border-radius: 9999px; text-transform: uppercase;">Clinical System</span>
+              </div>
+              <p style="font-size: 0.6875rem; color: var(--on-surface-variant); opacity: 0.6; max-width: 20rem; line-height: 1.6;">
+                Powered by Ollama LLM with Glass Box AI architecture. All neural weights are proprietary and encrypted.
+              </p>
+            </div>
+          </div>
+
+          <div class="footer-actions">
+            <button class="btn btn-secondary" onclick="window.app.showScreen('screen-dashboard')">Cancel</button>
+            <button class="btn btn-primary" onclick="window.app.saveSettings()">
+              <span class="material-icons">save</span>
+              Save Changes
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile Navigation -->
+  <nav class="mobile-nav">
+    <a class="mobile-nav-item active" onclick="window.app.showScreen('screen-dashboard')">
+      <span class="material-icons">dashboard</span>
+      Home
+    </a>
+    <a class="mobile-nav-item" onclick="window.app.startNewDiagnosis()">
+      <span class="material-icons">add_circle</span>
+      New
+    </a>
+    <a class="mobile-nav-item" onclick="window.app.showHistory()">
+      <span class="material-icons">history</span>
+      History
+    </a>
+    <a class="mobile-nav-item" onclick="window.app.showScreen('screen-settings')">
+      <span class="material-icons">settings</span>
+      Settings
+    </a>
+  </nav>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Core Application Script -->
+  <script src="storage.js"></script>
+  <script src="app.js"></script>
+
+  <script>
+    document.getElementById('header-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  </script>
 </body>
+
 </html>

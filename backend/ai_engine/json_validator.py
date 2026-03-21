@@ -109,40 +109,77 @@ DRUG_INTERACTION_FALLBACK: Dict[str, Any] = {
 
 def extract_json_from_text(text: str) -> str:
     """
-    Attempt to extract and repair a raw JSON object from a string.
-    
-    Robustness pipeline:
-      1. Strip surrounding prose.
-      2. Remove markdown code fences.
-      3. Locate outermost { ... } block.
-      4. Remove trailing commas (common LLM error).
-      5. Replace literal newlines inside values with \n.
+    Extract and repair JSON from LLM output.
+    Handles garbage after JSON and common LLM errors.
     """
     if not text:
         return ""
-        
+    
     text = text.strip()
-
-    # Step 1: Remove markdown code fences
+    
+    # Remove markdown code fences
     if "```" in text:
-        text = re.sub(r"```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```", "", text)
-        text = text.strip()
-
-    # Step 2: Find outermost JSON object
+        parts = text.split("```")
+        for part in parts:
+            part = part.strip()
+            if part.startswith("{") or (len(part) > 1 and "{" in part):
+                text = part
+                break
+    
+    # Find first { and extract to matching }
     start = text.find("{")
-    end   = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        text = text[start : end + 1]
+    if start == -1:
+        return "{}"
     
-    # Step 3: Basic JSON cleanup (Repairing common LLM hallucinations)
+    # Find the matching closing brace using stack
+    depth = 0
+    in_string = False
+    escape_next = False
+    end = start
     
-    # Remove trailing commas before a closing brace/bracket
+    for i, c in enumerate(text[start:], start):
+        if escape_next:
+            escape_next = False
+            continue
+        if c == "\\":
+            escape_next = True
+            continue
+        if c == '"' and not escape_next:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    
+    text = text[start:end + 1]
+    
+    # Remove garbage after JSON (common LLM issue)
+    # Look for non-JSON characters after the closing brace
+    remaining = text[end + 1:] if end < len(text) - 1 else ""
+    if remaining.strip() and not remaining.strip().startswith(","):
+        # There's garbage after JSON, but we have valid JSON
+        pass  # Keep just the JSON part
+    
+    # Fix trailing commas
     text = re.sub(r',\s*([\]}])', r'\1', text)
     
-    # Fix common escaping issues: If the model puts literal newlines in a string, 
-    # json.loads will fail. We try to catch these in a simple way.
-    # This is tricky without a full parser, but we can target common fields.
+    # Fix common typos
+    text = re.sub(r'"condition\w+":\s*"(\d+%)"', r'"probability": "\1"', text)
+    text = re.sub(r'"condition\w+":', r'"condition":', text)
+    text = re.sub(r'"supportingth:|"supporting\w+features:', r'"supporting_features":', text)
+    
+    # Fix Python dict style
+    text = re.sub(r"'([^']+)':\s*'", r'"\1": "', text)
+    text = re.sub(r":\s*'([^']*)'", r': "\1"', text)
+    
+    # Only fix truly garbage merged keys (no semantic meaning, very long)
+    text = re.sub(r'"([a-zA-Z]{30,})":', lambda m: m.group(0), text)
     
     return text
 

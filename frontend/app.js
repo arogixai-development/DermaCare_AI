@@ -14,11 +14,10 @@ class AppController {
       this.validScreens = [
         'screen-dashboard', 'screen-intake', 'screen-assessment',
         'screen-diagnosis', 'screen-treatment', 'screen-soap',
-        'screen-history', 'screen-case-details', 'screen-drug-checker', 'screen-settings'
+        'screen-history', 'screen-drug-checker', 'screen-settings'
       ];
       
       this.historyCache = [];
-      this.currentViewCaseId = null;
 
       this.updateDashboardMetrics();
       this.initNetworkMonitoring();
@@ -28,34 +27,74 @@ class AppController {
   }
 
   initNetworkMonitoring() {
-    const el = document.getElementById('network-status');
-    if (!el) return;
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
     
     const updateStatus = async () => {
-      if (!el) return;
+      if (!dot || !text) return;
       
       try {
         const hostname = window.location.hostname || "127.0.0.1";
-        const ping = await fetch(`http://${hostname}:8001/diagnosis/health`, { method: 'GET', signal: AbortSignal.timeout(3000) });
+        const ping = await fetch(`http://${hostname}:8007/diagnosis/health`, { method: 'GET', signal: AbortSignal.timeout(3000) });
         if (ping.ok) {
           const health = await ping.json();
+          const retryBtn = document.getElementById('retry-btn');
           if (health.ollama_connected) {
-            el.innerHTML = 'Status: 🟢 Online (AI Ready)';
-            el.style.color = '';
+            dot.style.background = '#22c55e';
+            text.textContent = 'Online / AI Ready';
+            if (retryBtn) retryBtn.style.display = 'none';
           } else {
-            el.innerHTML = 'Status: 🟠 Ollama Offline';
-            el.style.color = '#f59e0b';
+            dot.style.background = '#f59e0b';
+            text.textContent = 'Ollama Offline';
+            if (retryBtn) retryBtn.style.display = 'flex';
           }
         }
       } catch (err) {
-        el.innerHTML = 'Status: 🔴 Offline';
-        el.style.color = '#ef4444';
+        dot.style.background = '#ef4444';
+        text.textContent = 'Offline';
+        const retryBtn = document.getElementById('retry-btn');
+        if (retryBtn) retryBtn.style.display = 'flex';
       }
     };
     
-    // Heartbeat every 30 seconds
     setInterval(updateStatus, 30000);
-    setTimeout(updateStatus, 2000); // Delay initial check
+    setTimeout(updateStatus, 1000);
+  }
+
+  async retryConnection() {
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    const retryBtn = document.getElementById('retry-btn');
+    
+    if (dot) dot.style.background = '#f59e0b';
+    if (text) text.textContent = 'Reconnecting...';
+    if (retryBtn) retryBtn.style.display = 'none';
+    
+    try {
+      const hostname = window.location.hostname || "127.0.0.1";
+      const ping = await fetch(`http://${hostname}:8007/diagnosis/health`, { method: 'GET', signal: AbortSignal.timeout(5000) });
+      if (ping.ok) {
+        const health = await ping.json();
+        if (health.ollama_connected) {
+          if (dot) dot.style.background = '#22c55e';
+          if (text) text.textContent = 'Online / AI Ready';
+          this.showToast('Connected to Ollama successfully!', 'success');
+        } else {
+          if (dot) dot.style.background = '#f59e0b';
+          if (text) text.textContent = 'Ollama Offline';
+          if (retryBtn) retryBtn.style.display = 'flex';
+        }
+      }
+    } catch (err) {
+      if (dot) dot.style.background = '#ef4444';
+      if (text) text.textContent = 'Offline';
+      if (retryBtn) retryBtn.style.display = 'flex';
+      this.showToast('Cannot connect to backend. Is the server running?', 'error');
+    }
+  }
+
+  async checkConnection() {
+    await this.retryConnection();
   }
 
   // --- HTML DOM Navigation (Core Logic) ---
@@ -90,7 +129,6 @@ class AppController {
       }
 
       this.updateSidebarActive(targetId);
-      this.updateStepper(targetId);
       
       if (targetId === 'screen-dashboard') {
         this.updateDashboardMetrics();
@@ -104,58 +142,12 @@ class AppController {
     }
   }
 
-  updateStepper(screenId) {
-    const stepper = document.getElementById('workflow-stepper');
-    const steps = ['screen-intake', 'screen-assessment', 'screen-diagnosis', 'screen-treatment', 'screen-soap'];
-    
-    if (steps.includes(screenId)) {
-      stepper.style.display = 'flex';
-      const currentIndex = steps.indexOf(screenId);
-      
-      steps.forEach((s, i) => {
-        const stepEl = document.getElementById(`step-${i + 1}`);
-        stepEl.classList.remove('active', 'completed');
-        if (i < currentIndex) stepEl.classList.add('completed');
-        if (i === currentIndex) stepEl.classList.add('active');
-      });
-    } else {
-      stepper.style.display = 'none';
-    }
-  }
-
   startNewDiagnosis(e) {
     const event = e || window.event;
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
     this.currentCasePayload = null;
     this.rawAIResponse = "";
     this.showScreen('screen-intake');
-  }
-
-  async runDemoCase(e) {
-    const event = e || window.event;
-    if (event && event.preventDefault) event.preventDefault();
-
-    // Start fresh
-    this.startNewDiagnosis();
-
-    // Fill Step 1: Intake
-    await new Promise(r => setTimeout(r, 600)); // Cinematic delay
-    document.getElementById('patient_age').value = "42";
-    document.getElementById('geographic_region').value = "South India";
-    document.getElementById('skin_phototype').value = "Type IV";
-    document.getElementById('occupation').value = "Software Engineer";
-
-    // Fill Step 2: Assessment
-    this.showScreen('screen-assessment');
-    await new Promise(r => setTimeout(r, 600));
-    document.getElementById('complaint').value = "Chronic scaling plaque on elbows";
-    document.getElementById('lesion').value = "Symmetrical erythematous plaques with silvery scales, sharply demarcated, 5cm diameters.";
-    document.getElementById('symptoms').value = "Mild itch, Auspitz sign positive when scales removed.";
-    document.getElementById('tests').value = "Dermoscopy shows uniform red dots (tortuous capillaries).";
-
-    // Trigger AI
-    await new Promise(r => setTimeout(r, 800));
-    this.analyzeCase();
   }
 
   updateSidebarActive(screenId) {
@@ -165,14 +157,12 @@ class AppController {
       document.getElementById('nav-dashboard')?.classList.add('active');
     } else if (['screen-intake', 'screen-assessment', 'screen-diagnosis', 'screen-treatment', 'screen-soap'].includes(screenId)) {
       document.getElementById('nav-new')?.classList.add('active');
-    } else if (['screen-history', 'screen-case-details'].includes(screenId)) {
+    } else if (screenId === 'screen-history') {
       document.getElementById('nav-history')?.classList.add('active');
     } else if (screenId === 'screen-drug-checker') {
       document.getElementById('nav-drug')?.classList.add('active');
     } else if (screenId === 'screen-settings') {
       document.getElementById('nav-settings')?.classList.add('active');
-    } else if (screenId === 'nav-demo') {
-      document.getElementById('nav-demo')?.classList.add('active');
     }
   }
 
@@ -185,9 +175,18 @@ class AppController {
   goNext(targetId, e) {
     const event = e || window.event;
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    
     if (this.currentScreen === 'screen-intake') {
       if (!this.validateInputs(['patient_age', 'geographic_region'])) return;
     }
+    
+    if (this.currentScreen === 'screen-diagnosis' && targetId === 'screen-treatment') {
+      if (!this.currentCasePayload || !this.currentCasePayload.diagnoses_list || this.currentCasePayload.diagnoses_list.length === 0) {
+        this.showToast('Please run AI analysis first before proceeding.', 'warning');
+        return;
+      }
+    }
+    
     this.showScreen(targetId);
   }
 
@@ -272,11 +271,11 @@ class AppController {
   
   showToast(message, type = 'info') {
     // Remove existing toasts
-    const existing = document.querySelector('.toast-notification');
+    const existing = document.querySelector('.toast');
     if (existing) existing.remove();
     
     const toast = document.createElement('div');
-    toast.className = 'toast-notification';
+    toast.className = 'toast';
     const bgColors = {
       'info': 'var(--medical-blue)',
       'warning': '#f59e0b',
@@ -346,29 +345,23 @@ class AppController {
   displayImagePreview(file) {
     const preview = document.getElementById('image-preview');
     const container = document.getElementById('image-preview-container');
-    const info = document.getElementById('image-info');
-    const uploadArea = document.getElementById('image-upload-area');
+    const uploadArea = document.querySelector('.image-upload');
     
     if (this.uploadedImage) {
       preview.src = this.uploadedImage;
-      container.style.display = 'block';
-      uploadArea.style.display = 'none';
-      
-      // Show file info
-      const sizeKB = (file.size / 1024).toFixed(1);
-      const sizeDisplay = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
-      info.textContent = `${file.name} (${sizeDisplay})`;
+      container.classList.remove('hidden');
+      if (uploadArea) uploadArea.style.display = 'none';
     }
   }
   
   removeImage() {
     this.uploadedImage = null;
     const container = document.getElementById('image-preview-container');
-    const uploadArea = document.getElementById('image-upload-area');
+    const uploadArea = document.querySelector('.image-upload');
     const input = document.getElementById('lesion-image');
     
-    container.style.display = 'none';
-    uploadArea.style.display = 'block';
+    container.classList.add('hidden');
+    if (uploadArea) uploadArea.style.display = 'flex';
     if (input) input.value = '';
     
     // Remove image indicator from lesion field
@@ -441,8 +434,12 @@ class AppController {
   async analyzeCase() {
     if (!this.validateInputs(['complaint'])) return;
 
-    // Preserve existing ID or other metadata if present
     const existingData = this.currentCasePayload || {};
+    
+    const symptoms = [];
+    document.querySelectorAll('#screen-assessment .checkbox-item input[type="checkbox"]:checked').forEach(cb => {
+      symptoms.push(cb.value);
+    });
     
     this.currentCasePayload = {
       ...existingData,
@@ -454,47 +451,49 @@ class AppController {
       occupation: document.getElementById('occupation').value || "Unknown",
       complaint: document.getElementById('complaint').value,
       lesion: document.getElementById('lesion').value || "None provided",
-      symptoms: document.getElementById('symptoms').value || "None stated",
+      symptoms: symptoms.join(', ') || "None stated",
       tests: document.getElementById('tests').value || "None",
-      // Include image data if uploaded
+      lesion_history: document.getElementById('lesion_history').value || "Not provided",
+      history_duration: document.getElementById('history_duration').value || "Unknown",
+      change_pattern: document.getElementById('change_pattern').value || "Unknown",
       has_image: !!this.uploadedImage,
       image_data: this.uploadedImage || null
     };
 
     const btn = document.getElementById('analyze-btn');
-    const loading = document.getElementById('loading');
-    const statusText = document.getElementById('analysis-status');
-    const progressBar = document.getElementById('analysis-progress');
+    const loading = document.getElementById('loading-state');
+    const progressBar = document.getElementById('analysis-progress-bar');
+    const progressText = document.getElementById('progress-percent');
+    const estTime = document.getElementById('est-time');
     
     btn.disabled = true;
-    loading.style.display = 'flex';
+    loading.classList.remove('hidden');
     progressBar.style.width = '0%';
     
     const statusMessages = [
-      { text: "Processing patient data...", progress: 15, time: "5-10 seconds" },
-      { text: "Connecting to AI model...", progress: 25, time: "10-20 seconds" },
-      { text: "Evaluating clinical patterns...", progress: 50, time: "20-40 seconds" },
-      { text: "Generating differential diagnoses...", progress: 70, time: "40-50 seconds" },
-      { text: "Finalizing recommendations...", progress: 90, time: "50-60 seconds" }
+      { text: "Initializing AI model...", progress: 15, time: "~10s" },
+      { text: "Processing patient data...", progress: 30, time: "~20s" },
+      { text: "Analyzing clinical patterns...", progress: 50, time: "~30s" },
+      { text: "Generating treatment recommendations...", progress: 70, time: "~40s" },
+      { text: "Finalizing diagnosis report...", progress: 90, time: "~45s" }
     ];
 
     let messageIndex = 0;
     const intervalId = setInterval(() => {
       if (messageIndex < statusMessages.length) {
-        statusText.innerText = statusMessages[messageIndex].text;
+        progressText.textContent = `Processing: ${statusMessages[messageIndex].text}`;
+        estTime.textContent = `Est. ${statusMessages[messageIndex].time}`;
         progressBar.style.width = statusMessages[messageIndex].progress + '%';
-        document.getElementById('estimated-time').textContent = 
-          `Estimated time remaining: ${statusMessages[messageIndex].time}`;
         messageIndex++;
       }
-    }, 12000); // Update every 12 seconds
+    }, 10000); // Update every 10 seconds for better feedback
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for image processing
 
     try {
       const hostname = window.location.hostname || "127.0.0.1";
-      const apiEndpoint = `http://${hostname}:8001/diagnosis`;
+      const apiEndpoint = `http://${hostname}:8007/diagnosis`;
 
       const res = await fetch(apiEndpoint, {
         method: "POST",
@@ -510,19 +509,15 @@ class AppController {
 
       const data = await res.json();
       
-      // Map the new structured JSON fields to our state
-      // Expected fields: { diagnoses: [], reasoning: "", soap: "", triage: "" }
-      this.currentCasePayload.diagnoses_list = data.diagnoses || [];
-      this.currentCasePayload.reasoning = data.reasoning || "";
-      this.currentCasePayload.soap_note = data.soap || "";
+      this.currentCasePayload.diagnoses_list = data.differential_diagnosis || data.diagnoses || [];
+      this.currentCasePayload.reasoning = data.clinical_reasoning || data.reasoning || "";
+      this.currentCasePayload.soap_note = data.soap_note || data.soap || "";
       this.currentCasePayload.triage = data.triage || "Routine";
-      this.currentCasePayload.tests_list = data.tests || [];
-      this.currentCasePayload.referral_list = data.referral || [];
-      this.currentCasePayload.treatment_list = data.treatment || [];
-      
+      this.currentCasePayload.tests_list = data.tests_list || data.tests || [];
+      this.currentCasePayload.referral_list = data.referral_indicators || data.referral || [];
+      this.currentCasePayload.treatment_list = data.treatment_plan || data.treatment || [];
       this.currentCasePayload.status = "completed";
 
-      // Display the results
       this.parseAIResponse(data);
       this.showScreen('screen-diagnosis');
 
@@ -530,29 +525,28 @@ class AppController {
       console.error("Analysis Failed:", error);
       
       let errorMsg = error.message;
-      let isOllamaOffline = errorMsg.includes("503") || errorMsg.includes("Offline") || errorMsg.includes("ollama");
+      let isOllamaOffline = errorMsg.includes("503") || errorMsg.includes("Offline") || errorMsg.includes("ollama") || errorMsg.includes("fetch");
       
-      if (error.name === 'AbortError') errorMsg = "AI processing timed out. Please retry.";
+      if (error.name === 'AbortError') {
+        errorMsg = "Request timed out. The AI model may be loading slowly. Please try again.";
+      }
       if (isOllamaOffline) {
-        errorMsg = "Ollama is not running. Please start Ollama in a terminal: `ollama serve`";
+        errorMsg = "Cannot connect to AI backend. Make sure Ollama is running: `ollama serve`";
       }
 
-      // Show error in the UI with helpful message
-      const resultDiv = document.getElementById('diagnosis-result');
-      resultDiv.innerHTML = `
-        <div class="clinical-alert ${isOllamaOffline ? 'alert-warning' : 'alert-danger'}" 
-             style="background:${isOllamaOffline ? 'rgba(245,158,11,0.1)' : 'var(--error-bg)'}; 
-                    color:${isOllamaOffline ? '#d97706' : 'var(--error-text)'}; 
-                    padding:1rem; border-radius:8px; border-left: 4px solid ${isOllamaOffline ? '#f59e0b' : '#dc3545'};">
-            <p><strong>⚠️ ${isOllamaOffline ? 'AI Backend Offline' : 'Analysis Failed'}</strong></p>
-            <p>${this.sanitizeEscape(errorMsg)}</p>
-            ${isOllamaOffline ? '<p style="margin-top:0.5rem;font-size:0.85rem;">Open a terminal and run: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">ollama serve</code></p>' : ''}
-            <button onclick="window.app.analyzeCase()" class="btn btn-primary btn-small" style="margin-top:1rem;">Retry Analysis</button>
+      const diagList = document.getElementById('diagnosis-list');
+      diagList.innerHTML = `
+        <div class="safety-alert" style="background: rgba(245,158,11,0.1); border-color: #f59e0b;">
+          <span class="material-icons" style="color: #f59e0b;">error</span>
+          <div class="safety-alert-content">
+            <span class="safety-alert-title">${isOllamaOffline ? 'AI Backend Offline' : 'Analysis Failed'}</span>
+            <span class="safety-alert-text">${this.sanitizeEscape(errorMsg)}</span>
+          </div>
         </div>
+        <button class="btn btn-primary" onclick="window.app.analyzeCase()" style="margin-top: 1rem;">
+          <span class="material-icons">refresh</span> Retry
+        </button>
       `;
-      
-      document.getElementById('diagnosis-fallback').style.display = 'block';
-      document.getElementById('diagnosis-structured').style.display = 'none';
       
       this.currentCasePayload.status = "pending";
       this.showScreen('screen-diagnosis');
@@ -561,7 +555,7 @@ class AppController {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
       btn.disabled = false;
-      loading.style.display = 'none';
+      loading.classList.add('hidden');
       
       if (this.currentCasePayload) {
          await saveCase(this.currentCasePayload);
@@ -570,221 +564,196 @@ class AppController {
   }
 
   parseAIResponse(data) {
-    if (!data || typeof data !== 'object') return;
+    if (!data || typeof data !== 'object') {
+      console.error('parseAIResponse: Invalid data received', data);
+      return;
+    }
 
-    // Map new field names (differential_diagnosis) or legacy (diagnoses)
+    // Debug logging to verify data received
+    console.log('=== DermaCare AI Response ===');
+    console.log('differential_diagnosis:', data.differential_diagnosis?.length || 0, 'items');
+    console.log('lesion_analysis:', data.lesion_analysis?.length || 0, 'items');
+    console.log('recommended_tests:', data.recommended_tests?.length || 0, 'items');
+    console.log('treatment_plan:', data.treatment_plan?.length || 0, 'items');
+    console.log('soap_note type:', typeof data.soap_note);
+    console.log('clinical_reasoning length:', (data.clinical_reasoning || '').length);
+
     const diffDx = data.differential_diagnosis || data.diagnoses || [];
     const reasoning = data.clinical_reasoning || data.reasoning || "";
     const soapNote = data.soap_note || data.soap || "";
     const treatmentPlan = data.treatment_plan || data.treatment || [];
-    const referralIndicators = data.referral_indicators || data.referral || [];
-    const followUp = data.follow_up || "";
-    const recommendedTests = data.tests_list || data.tests || [];
-    const triageValue = (data.triage || "Routine").toLowerCase();
+    const recommendedTests = data.recommended_tests || data.tests_list || data.tests || [];
+    const lesionAnalysis = data.lesion_analysis || [];
+    const uncertaintyFlags = data.uncertainty_flags || {};
+    const gmuAnalysis = data.gmu_analysis || {};
+    const safetyChecks = data.safety_checks || {};
 
-    // Format differential diagnosis for display
-    let diagnosesHTML = "";
-    if (Array.isArray(diffDx)) {
-      diagnosesHTML = diffDx.map((d, i) => {
-        if (typeof d === 'string') return `<div style="padding:12px;background:#334155;border-radius:8px;color:#f1f5f9;margin-bottom:10px;"><strong>${d}</strong></div>`;
+    // Differential Diagnoses
+    const diagList = document.getElementById('diagnosis-list');
+    if (Array.isArray(diffDx) && diffDx.length > 0) {
+      diagList.innerHTML = diffDx.map((d, i) => {
         const probColor = d.probability && (d.probability.includes('90') || d.probability.includes('85') || d.probability.includes('80')) ? '#22c55e' : 
                          d.probability && (d.probability.includes('70') || d.probability.includes('60')) ? '#84cc16' :
                          d.probability && d.probability.includes('50') ? '#eab308' : '#64748b';
-        return `<div style="padding:14px;background:#334155;border-radius:10px;border-left:4px solid ${probColor};margin-bottom:12px;color:#f1f5f9;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <strong style="color:#ffffff;font-size:1rem;">${i === 0 ? '⭐ ' : ''}${d.condition || 'Unknown'}</strong>
-            <span style="background:${probColor};color:white;padding:3px 12px;border-radius:12px;font-size:0.8rem;font-weight:600;">${d.probability || 'N/A'}</span>
+        const features = d.supporting_features || d.features || [];
+        const exclusions = d.differentials_to_exclude || [];
+        return `<div class="diagnosis-item">
+          <div class="diagnosis-header">
+            <span class="diagnosis-name">${i === 0 ? '<span class="material-icons" style="color: var(--primary);">star</span> ' : ''}${d.condition || 'Unknown'}</span>
+            <span class="diagnosis-probability" style="background: ${probColor};">${d.probability || 'N/A'}</span>
           </div>
-          <div style="font-size:0.85rem;color:#cbd5e1;">${(d.supporting_features || []).join(' | ')}</div>
+          <div class="diagnosis-features">${Array.isArray(features) && features.length > 0 ? features.join(' | ') : 'Supporting features available'}</div>
+          ${exclusions.length > 0 ? `<div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--on-surface-variant);"><strong>Differentials to exclude:</strong> ${exclusions.join(', ')}</div>` : ''}
         </div>`;
       }).join('');
     } else {
-      diagnosesHTML = `<div style="padding:12px;background:#334155;border-radius:8px;color:#f1f5f9;">${diffDx}</div>`;
+      diagList.innerHTML = '<p style="color: var(--on-surface-variant);">No specific diagnoses generated.</p>';
     }
 
-    // Format treatment plan for display
-    let treatmentHTML = "";
-    if (Array.isArray(treatmentPlan)) {
-      treatmentHTML = treatmentPlan.map((t, i) => {
-        if (typeof t === 'string') return `<div style="padding:12px;background:#334155;border-radius:8px;margin-bottom:8px;color:#f1f5f9;">${t}</div>`;
-        return `<div style="padding:14px;background:#334155;border-radius:10px;border:1px solid #475569;margin-bottom:10px;color:#f1f5f9;">
-          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
-            <span style="background:#007bff;color:white;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:bold;">${i + 1}</span>
-            <strong style="color:#60a5fa;font-size:1rem;">${t.medication || 'Treatment'}</strong>
-          </div>
-          <div style="margin-left:34px;">
-            <div style="margin-bottom:4px;color:#94a3b8;">Application: <span style="color:#e2e8f0;">${t.application || 'N/A'}</span></div>
-            <div style="margin-bottom:4px;color:#94a3b8;">Duration: <span style="color:#22c55e;font-weight:600;">${t.duration || 'N/A'}</span></div>
-            ${t.education ? `<div style="margin-top:8px;padding:8px;background:#fef3c7;border-radius:6px;font-size:0.85rem;color:#92400e;">&#9432; ${t.education}</div>` : ''}
+    // AI Confidence
+    const confText = document.getElementById('ai-confidence-text');
+    if (confText) {
+      const conf = uncertaintyFlags.overall_confidence || 'MEDIUM';
+      const ci = uncertaintyFlags.confidence_interval || [30, 70];
+      confText.textContent = `${conf} confidence (Monte Carlo, CI: ${ci[0]}-${ci[1]}%)`;
+    }
+
+    // Lesion Analysis
+    const lesionList = document.getElementById('lesion-analysis-list');
+    if (Array.isArray(lesionAnalysis) && lesionAnalysis.length > 0 && lesionAnalysis[0]) {
+      const la = lesionAnalysis[0];
+      let html = '';
+      if (la.morphology) html += `<div style="margin-bottom: 1rem;"><strong>Morphology:</strong><br>${this.sanitizeEscape(la.morphology)}</div>`;
+      if (la.distribution) html += `<div style="margin-bottom: 1rem;"><strong>Distribution:</strong><br>${this.sanitizeEscape(la.distribution)}</div>`;
+      if (la.ABCDE_assessment) html += `<div style="margin-bottom: 1rem;"><strong>ABCDE Assessment:</strong><br>${this.sanitizeEscape(la.ABCDE_assessment)}</div>`;
+      if (la.color_patterns) {
+        const patterns = Array.isArray(la.color_patterns) ? la.color_patterns : [la.color_patterns];
+        html += `<div style="margin-bottom: 1rem;"><strong>Color Patterns:</strong><br>${this.sanitizeEscape(patterns.join(', '))}</div>`;
+      }
+      if (la.dermoscopy_findings) html += `<div style="margin-bottom: 1rem;"><strong>Dermoscopy Findings:</strong><br>${this.sanitizeEscape(la.dermoscopy_findings)}</div>`;
+      lesionList.innerHTML = html || '<p style="color: var(--on-surface-variant);">Lesion analysis details pending.</p>';
+    } else {
+      lesionList.innerHTML = '<p style="color: var(--on-surface-variant);">No detailed lesion analysis available. Please provide clinical description for best results.</p>';
+    }
+
+    // Recommended Tests
+    const testsList = document.getElementById('recommended-tests-list');
+    if (Array.isArray(recommendedTests) && recommendedTests.length > 0) {
+      testsList.innerHTML = recommendedTests.map((t, i) => {
+        const name = typeof t === 'string' ? t : t.test || t.name || `Test ${i + 1}`;
+        return `<div class="analysis-item">
+          <span class="material-icons" style="font-size: 1rem; color: var(--secondary);">science</span>
+          <div>
+            <div style="font-weight: 500;">${this.sanitizeEscape(name)}</div>
           </div>
         </div>`;
       }).join('');
     } else {
-      treatmentHTML = `<div style="padding:12px;background:#334155;border-radius:8px;color:#f1f5f9;">${treatmentPlan}</div>`;
+      testsList.innerHTML = '<p style="color: var(--on-surface-variant);">No specific tests recommended.</p>';
     }
 
-    // Format SOAP note - Simple clean format
-    let soapHTML = '<div style="font-family:system-ui,sans-serif;line-height:1.8;">';
-    
-    let s = '', o = '', a = '', p = '';
-    
-    if (typeof soapNote === 'object' && soapNote !== null) {
-      s = soapNote.S || soapNote.SUBJECTIVE || soapNote.s || '';
-      o = soapNote.O || soapNote.OBJECTIVE || soapNote.o || '';
-      a = soapNote.A || soapNote.ASSESSMENT || soapNote.a || '';
-      p = typeof soapNote.P === 'object' ? JSON.stringify(soapNote.P) : (soapNote.P || soapNote.PLAN || soapNote.p || '');
-    } else if (typeof soapNote === 'string' && soapNote) {
-      // Simple approach: find content between quotes after each key
-      // Pattern: 'S': 'content' or "S": "content"
-      const getValue = (str, key) => {
-        const patterns = [
-          new RegExp(`'${key}':\\s*'([^']*)'`, 'i'),
-          new RegExp(`"${key}":\\s*"([^"]*)"`, 'i'),
-          new RegExp(`${key}:\\s*(.+?)(?=,\\s*(?:'|$))`, 'i')
-        ];
-        for (const p of patterns) {
-          const m = str.match(p);
-          if (m && m[1]) return m[1].trim();
-        }
-        return '';
-      };
-      
-      s = getValue(soapNote, 'S');
-      o = getValue(soapNote, 'O');
-      a = getValue(soapNote, 'A');
-      p = getValue(soapNote, 'P');
-    }
-    
-    // Clean up text
-    const clean = (text) => {
-      if (!text) return '';
-      return text.replace(/\\n/g, '<br>')
-                 .replace(/\\'/g, "'")
-                 .replace(/\\\\/g, '')
-                 .replace(/\\"/g, '"')
-                 .replace(/\\+/g, '')
-                 .replace(/[{}[\]]/g, '')
-                 .trim();
-    };
-    
-    // Only show sections with content
-    if (s) {
-      soapHTML += `<div style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <span style="background:#8b5cf6;color:white;padding:6px 14px;border-radius:8px;font-weight:700;font-size:1rem;">S</span>
-          <span style="font-weight:700;font-size:1.1rem;color:#8b5cf6;">SUBJECTIVE</span>
-        </div>
-        <div style="margin-left:52px;padding:14px 18px;background:#1e1b4b;border-radius:10px;border-left:5px solid #8b5cf6;font-size:0.95rem;line-height:1.7;color:#e2e8f0;">${clean(s)}</div>
-      </div>`;
-    }
-    if (o) {
-      soapHTML += `<div style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <span style="background:#0891b2;color:white;padding:6px 14px;border-radius:8px;font-weight:700;font-size:1rem;">O</span>
-          <span style="font-weight:700;font-size:1.1rem;color:#0891b2;">OBJECTIVE</span>
-        </div>
-        <div style="margin-left:52px;padding:14px 18px;background:#083344;border-radius:10px;border-left:5px solid #0891b2;font-size:0.95rem;line-height:1.7;color:#e2e8f0;">${clean(o)}</div>
-      </div>`;
-    }
-    if (a) {
-      soapHTML += `<div style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <span style="background:#059669;color:white;padding:6px 14px;border-radius:8px;font-weight:700;font-size:1rem;">A</span>
-          <span style="font-weight:700;font-size:1.1rem;color:#059669;">ASSESSMENT</span>
-        </div>
-        <div style="margin-left:52px;padding:14px 18px;background:#022c22;border-radius:10px;border-left:5px solid #059669;font-size:0.95rem;line-height:1.7;color:#e2e8f0;">${clean(a)}</div>
-      </div>`;
-    }
-    if (p) {
-      soapHTML += `<div style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-          <span style="background:#dc2626;color:white;padding:6px 14px;border-radius:8px;font-weight:700;font-size:1rem;">P</span>
-          <span style="font-weight:700;font-size:1.1rem;color:#dc2626;">PLAN</span>
-        </div>
-        <div style="margin-left:52px;padding:14px 18px;background:#450a0a;border-radius:10px;border-left:5px solid #dc2626;font-size:0.95rem;line-height:1.7;color:#e2e8f0;">${clean(p)}</div>
-      </div>`;
-    }
-    
-    soapHTML += '</div>';
-    
-    // Check if SOAP was parsed successfully (has content in sections)
-    const hasValidSOAP = s || o || a || p;
-    
-    // Update UI elements
-    document.getElementById('box-diagnoses').innerHTML = diagnosesHTML;
-    document.getElementById('box-reasoning').innerHTML = `<div style="padding:12px 16px;background:#1e293b;border-radius:8px;line-height:1.7;font-size:0.9rem;color:#f1f5f9;">${reasoning.replace(/\n/g, '<br>')}</div>`;
-    
-    // Recommended Tests - white theme compatible
-    if (followUp) {
-      document.getElementById('box-tests').innerHTML = `<div style="padding:12px 16px;background:#1e293b;border-radius:8px;line-height:1.7;font-size:0.9rem;color:#f1f5f9;">${followUp}</div>`;
-    } else if (Array.isArray(recommendedTests) && recommendedTests.length > 0) {
-      document.getElementById('box-tests').innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">${recommendedTests.map((t, i) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;background:#1e293b;border-radius:6px;"><span style="background:#f59e0b;color:white;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:bold;flex-shrink:0;">${i + 1}</span><span style="color:#f1f5f9;font-size:0.9rem;">${t}</span></div>`).join('')}</div>`;
-    } else {
-      document.getElementById('box-tests').innerHTML = '<div style="padding:12px 16px;background:#1e293b;border-radius:8px;text-align:center;color:#94a3b8;font-size:0.9rem;">Follow-up as recommended</div>';
-    }
-    
-    // Referral Advice - white theme compatible
-    if (referralIndicators.length > 0) {
-      document.getElementById('box-referral').innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">${referralIndicators.map(r => `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:#1e293b;border-radius:6px;border-left:4px solid #ef4444;"><span style="color:#ef4444;font-size:0.9rem;font-weight:600;">⚠️</span><span style="color:#f1f5f9;font-size:0.9rem;">${r}</span></div>`).join('')}</div>`;
-    } else {
-      document.getElementById('box-referral').innerHTML = '<div style="padding:12px 16px;background:#1e293b;border-radius:8px;text-align:center;color:#94a3b8;font-size:0.9rem;">No referral indicators</div>';
-    }
-    
-    // Update Treatment result with better formatting
-    document.getElementById('treatment-result').innerHTML = treatmentHTML;
-
-    // Update SOAP result
-    const soapResult = document.getElementById('soap-result');
-    if (soapResult) {
-      // If SOAP parsing failed, show fallback structured format
-      if (!hasValidSOAP && soapNote) {
-        soapResult.innerHTML = `<div style="padding:16px;background:#f8fafc;border-radius:10px;font-family:monospace;white-space:pre-wrap;font-size:0.9rem;line-height:1.6;color:#334155;border:1px solid #e2e8f0;">${soapNote}</div>`;
+    // Clinical Reasoning
+    const reasoningEl = document.getElementById('clinical-reasoning');
+    if (reasoningEl) {
+      if (reasoning) {
+        reasoningEl.innerHTML = this.sanitizeEscape(reasoning).replace(/\n/g, '<br>');
       } else {
-        soapResult.innerHTML = soapHTML;
+        reasoningEl.innerHTML = '<p style="color: var(--on-surface-variant);">No clinical reasoning provided.</p>';
       }
     }
 
-    // Store soap_note for later use
-    if (this.currentCasePayload) {
-      this.currentCasePayload.soap_note = soapNote;
+    // Treatment Plan
+    const treatmentList = document.getElementById('treatment-list');
+    if (Array.isArray(treatmentPlan) && treatmentPlan.length > 0) {
+      treatmentList.innerHTML = treatmentPlan.map((t, i) => {
+        const med = typeof t === 'string' ? t : t.medication || t.treatment || `Treatment ${i + 1}`;
+        const app = typeof t === 'object' ? (t.application || t.instructions || '') : '';
+        const dur = typeof t === 'object' ? (t.duration || '') : '';
+        const edu = typeof t === 'object' ? (t.education || '') : '';
+        return `<div class="card" style="margin-bottom: 1rem;">
+          <div style="display: flex; align-items: flex-start; gap: 1rem;">
+            <span class="treatment-number">${i + 1}</span>
+            <div style="flex: 1;">
+              <h4 style="margin: 0 0 0.5rem; color: var(--on-surface);">${this.sanitizeEscape(med)}</h4>
+              ${app ? `<p style="margin: 0 0 0.5rem; font-size: 0.875rem; color: var(--on-surface-variant);">${this.sanitizeEscape(app)}</p>` : ''}
+              ${dur ? `<p style="margin: 0 0 0.25rem; font-size: 0.75rem; color: var(--primary); font-weight: 600;">Duration: ${this.sanitizeEscape(dur)}</p>` : ''}
+              ${edu ? `<p style="margin: 0; font-size: 0.75rem; color: var(--tertiary-container);">${this.sanitizeEscape(edu)}</p>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      treatmentList.innerHTML = '<p style="color: var(--on-surface-variant);">No treatment plan available.</p>';
     }
 
-    // Handle Triage Alert Display
-    const triageBox = document.getElementById('triage-alert');
-    const triageText = document.getElementById('triage-text');
-    
-    if (triageBox && triageText) {
-        triageBox.style.display = 'flex';
-        triageText.innerText = data.triage;
+    // SOAP Content
+    const soapContent = document.getElementById('soap-content');
+    if (soapContent) {
+      let s = '', o = '', a = '', p = '';
+      
+      // Handle soap_note as object with S, O, A, P keys
+      if (typeof soapNote === 'object' && soapNote !== null) {
+        s = soapNote.S || soapNote.SUBJECTIVE || soapNote.s || soapNote.subjective || '';
+        o = soapNote.O || soapNote.OBJECTIVE || soapNote.o || soapNote.objective || '';
+        a = soapNote.A || soapNote.ASSESSMENT || soapNote.a || soapNote.assessment || '';
+        p = typeof soapNote.P === 'object' ? soapNote.P.join ? soapNote.P.join('<br>') : JSON.stringify(soapNote.P) : 
+            (soapNote.P || soapNote.PLAN || soapNote.p || soapNote.plan || '');
+      } else if (typeof soapNote === 'string') {
+        // Try to extract S, O, A, P from pipe-separated or structured string
+        const pipeMatch = soapNote.match(/S:?\s*([^|]+)/i);
+        if (pipeMatch) s = pipeMatch[1].trim();
+        const oMatch = soapNote.match(/O:?\s*([^|]+)/i);
+        if (oMatch) o = oMatch[1].trim();
+        const aMatch = soapNote.match(/A:?\s*([^|]+)/i);
+        if (aMatch) a = aMatch[1].trim();
+        const pMatch = soapNote.match(/P:?\s*(.+?)$/i);
+        if (pMatch) p = pMatch[1].trim();
         
-        triageBox.className = 'clinical-alert';
-        if (triageValue.includes('urgent') || triageValue.includes('high')) {
-            triageBox.classList.add('alert-danger');
-            triageBox.style.background = '#fee2e2';
-            triageBox.style.color = '#b91c1c';
-            triageBox.style.borderLeft = '4px solid #ef4444';
-        } else if (triageValue.includes('moderate') || triageValue.includes('medium')) {
-            triageBox.classList.add('alert-warning');
-        } else {
-            triageBox.classList.add('alert-info');
+        // If no structured format found, show as raw text
+        if (!s && !o && !a && !p) {
+          s = soapNote;
         }
+      }
+      
+      const clean = (text) => {
+        if (!text) return '';
+        return text.replace(/\\n/g, '<br>').replace(/\\'/g, "'").replace(/\\\\/g, '').replace(/\\"/g, '"').replace(/[{}[\]]/g, '').trim();
+      };
+      
+      let soapHTML = '';
+      if (s) soapHTML += `<div class="soap-section"><div class="soap-label S"><span>S</span>SUBJECTIVE</div><div class="soap-text">${clean(s)}</div></div>`;
+      if (o) soapHTML += `<div class="soap-section"><div class="soap-label O"><span>O</span>OBJECTIVE</div><div class="soap-text">${clean(o)}</div></div>`;
+      if (a) soapHTML += `<div class="soap-section"><div class="soap-label A"><span>A</span>ASSESSMENT</div><div class="soap-text">${clean(a)}</div></div>`;
+      if (p) soapHTML += `<div class="soap-section"><div class="soap-label P"><span>P</span>PLAN</div><div class="soap-text">${clean(p)}</div></div>`;
+      
+      if (soapHTML) {
+        soapContent.innerHTML = soapHTML;
+      } else {
+        soapContent.innerHTML = '<p style="color: var(--on-surface-variant);">No SOAP note generated.</p>';
+      }
     }
 
-    document.getElementById('diagnosis-fallback').style.display = 'none';
-    document.getElementById('diagnosis-structured').style.display = 'block';
+    // Store for later use
+    if (this.currentCasePayload) {
+      this.currentCasePayload.soap_note = typeof soapNote === 'string' ? soapNote : JSON.stringify(soapNote);
+    }
   }
 
   // --- Data & State Management ---
   clearForms() {
-    document.querySelectorAll('input, select, textarea').forEach(el => {
+    document.querySelectorAll('#screen-intake input, #screen-intake select, #screen-intake textarea').forEach(el => {
        if (el.id !== 'skin_phototype') el.value = "";
     });
-    // Clear uploaded image
+    document.querySelectorAll('#screen-assessment input, #screen-assessment select, #screen-assessment textarea').forEach(el => {
+       if (el.id !== 'skin_phototype') el.value = "";
+    });
+    document.querySelectorAll('.checkbox-item input[type="checkbox"]').forEach(el => el.checked = false);
+    
     this.uploadedImage = null;
     const container = document.getElementById('image-preview-container');
-    const uploadArea = document.getElementById('image-upload-area');
-    if (container) container.style.display = 'none';
-    if (uploadArea) uploadArea.style.display = 'block';
+    const uploadArea = document.querySelector('.image-upload');
+    if (container) container.classList.add('hidden');
+    if (uploadArea) uploadArea.style.display = 'flex';
     const imageInput = document.getElementById('lesion-image');
     if (imageInput) imageInput.value = '';
     
@@ -794,28 +763,23 @@ class AppController {
 
   async prepareSOAP() {
     this.showScreen('screen-soap');
-    const loading = document.getElementById('soap-loading');
-    const resultBox = document.getElementById('soap-result');
     
-    // If we already have a SOAP note from the initial diagnosis call, use it
+    const soapContent = document.getElementById('soap-content');
+    
     if (this.currentCasePayload && this.currentCasePayload.soap_note) {
-      resultBox.innerHTML = this.formatStructuredHTML(this.currentCasePayload.soap_note);
+      this.parseAIResponse({ soap_note: this.currentCasePayload.soap_note });
       return;
     }
 
     if (!this.currentCasePayload) {
-      resultBox.innerHTML = "<p>No case data found to generate SOAP note.</p>";
+      soapContent.innerHTML = "<p>No case data found to generate SOAP note.</p>";
       return;
     }
 
-    loading.style.display = 'flex';
-    resultBox.innerHTML = "";
-
     try {
       const hostname = window.location.hostname || "127.0.0.1";
-      const apiEndpoint = `http://${hostname}:8001/soap`;
+      const apiEndpoint = `http://${hostname}:8007/soap`;
 
-      // Send full case data for fresh SOAP generation
       const p = this.currentCasePayload;
       const soapRequest = {
         case_id: p.case_id || `case_${Date.now()}`,
@@ -843,13 +807,11 @@ class AppController {
       const soapNote = data.soap_note;
       
       this.currentCasePayload.soap_note = soapNote;
-      resultBox.innerHTML = this.formatStructuredHTML(soapNote);
+      this.parseAIResponse({ soap_note: soapNote });
 
     } catch (error) {
       console.error(error);
-      resultBox.innerHTML = `<p style="color:var(--error);">Error generating SOAP note: ${error.message}</p>`;
-    } finally {
-      loading.style.display = 'none';
+      soapContent.innerHTML = `<p style="color:var(--error);">Error generating SOAP note: ${error.message}</p>`;
     }
   }
 
@@ -971,7 +933,7 @@ class AppController {
 
     try {
       const hostname = window.location.hostname || "127.0.0.1";
-      const apiEndpoint = `http://${hostname}:8001/check-interactions`;
+      const apiEndpoint = `http://${hostname}:8007/check-interactions`;
 
       const res = await fetch(apiEndpoint, {
         method: "POST",
@@ -1053,6 +1015,40 @@ class AppController {
       document.getElementById('metric-total-cases').innerText = totalCount;
       document.getElementById('metric-completed-cases').innerText = completedCount;
       document.getElementById('metric-pending-cases').innerText = pendingCount;
+
+      // Populate recent cases list
+      const recentList = document.getElementById('recent-cases-list');
+      if (recentList) {
+        const recentCases = cases.slice(-5).reverse();
+        if (recentCases.length === 0) {
+          recentList.innerHTML = `
+            <div class="empty-state" style="padding: 1rem;">
+              <span class="material-icons" style="font-size: 2rem; color: var(--outline-variant);">history</span>
+              <p>No recent cases</p>
+            </div>
+          `;
+        } else {
+          recentList.innerHTML = recentCases.map(c => {
+            const date = new Date(c.timestamp).toLocaleDateString();
+            const topDx = c.diagnoses_list && c.diagnoses_list[0] ? c.diagnoses_list[0].condition || 'Pending' : 'Pending';
+            const conf = c.diagnoses_list && c.diagnoses_list[0] ? c.diagnoses_list[0].probability || '' : '';
+            return `
+              <div class="recent-case-item" onclick="window.app.showHistory()">
+                <div class="recent-case-info">
+                  <div class="recent-case-icon">
+                    <span class="material-icons">medical_information</span>
+                  </div>
+                  <div>
+                    <div class="recent-case-name">${this.sanitizeEscape(topDx)}</div>
+                    <div class="recent-case-meta">${this.sanitizeEscape(date)} • Age ${this.sanitizeEscape(c.patient_age?.toString() || 'N/A')}</div>
+                  </div>
+                </div>
+                ${conf ? `<span class="confidence-badge high">${conf}</span>` : ''}
+              </div>
+            `;
+          }).join('');
+        }
+      }
     } catch (err) {
       console.error("Failed to update metrics:", err);
     }
@@ -1068,263 +1064,104 @@ class AppController {
   // --- History Rendering ---
   async showHistory() {
     this.showScreen('screen-history');
-    const container = document.getElementById('history-container');
-    container.innerHTML = "<p style='color: var(--text-muted);'>Loading offline cases...</p>";
+    const grid = document.getElementById('history-grid');
+    const count = document.getElementById('history-count');
+    grid.innerHTML = "<p style='color: var(--on-surface-variant); grid-column: 1/-1; text-align: center;'>Loading cases...</p>";
     
     try {
       const cases = await getCases();
       this.historyCache = cases;
       this.renderHistory(cases);
     } catch (error) {
-       container.innerHTML = `<p style="color: var(--error);">Failed to load cases from internal database.</p>`;
+       grid.innerHTML = `<p style="color: var(--error); grid-column: 1/-1; text-align: center;">Failed to load cases.</p>`;
     }
   }
 
   renderHistory(cases) {
-    const container = document.getElementById('history-container');
+    const grid = document.getElementById('history-grid');
+    const count = document.getElementById('history-count');
+    
     if (cases.length === 0) {
-      container.innerHTML = "<p style='color: var(--text-muted);'>No cases found matching your criteria.</p>";
+      grid.innerHTML = "<p style='color: var(--on-surface-variant); grid-column: 1/-1; text-align: center;'>No cases found.</p>";
+      if (count) count.textContent = 'Showing 0 clinical cases';
       return;
     }
 
-    container.innerHTML = '';
+    grid.innerHTML = '';
     cases.forEach(c => {
-      const date = new Date(c.timestamp).toLocaleString();
-      const statusClass = c.status === 'pending' ? 'pending' : '';
-      const complaintSummary = c.complaint.length > 50 ? c.complaint.substring(0, 50) + "..." : c.complaint;
+      const date = new Date(c.timestamp).toLocaleDateString();
+      const complaintSummary = c.complaint && c.complaint.length > 60 ? c.complaint.substring(0, 60) + "..." : (c.complaint || 'No complaint');
+      const topDx = c.diagnoses_list && c.diagnoses_list[0] ? c.diagnoses_list[0].condition || 'Unknown' : 'Pending';
       
-      container.innerHTML += `
-        <div class="history-card" onclick="window.app.viewCaseDetails('${c.case_id}')">
-           <div class="history-card-header">
-             <div class="history-date">📅 ${this.sanitizeEscape(date)}</div>
-             <div class="history-status ${statusClass}">${this.sanitizeEscape(c.status) || 'unknown'}</div>
-           </div>
-           <div class="history-desc"><strong>🩺 Complaint:</strong> ${this.sanitizeEscape(complaintSummary)}</div>
-           <div class="history-desc"><strong>👤 Patient:</strong> Age ${this.sanitizeEscape(c.patient_age.toString())}, ${this.sanitizeEscape(c.geographic_region)}</div>
+      grid.innerHTML += `
+        <div class="history-card" onclick="window.app.loadCase('${c.case_id}')">
+          <div class="history-card-header">
+            <span class="history-date">${this.sanitizeEscape(date)}</span>
+            <span class="history-status ${c.status === 'pending' ? 'pending' : ''}">${this.sanitizeEscape(c.status) || 'unknown'}</span>
+          </div>
+          <div class="history-complaint">${this.sanitizeEscape(complaintSummary)}</div>
+          <div class="history-diagnosis">
+            <span class="material-icons" style="font-size: 1rem;">medical_information</span>
+            ${this.sanitizeEscape(topDx)}
+          </div>
+          <div class="history-meta">
+            <span>Age ${this.sanitizeEscape(c.patient_age?.toString() || 'N/A')}</span>
+            <span>${this.sanitizeEscape(c.geographic_region || 'Unknown')}</span>
+          </div>
         </div>
       `;
     });
+    
+    if (count) count.textContent = `Showing ${cases.length} clinical case${cases.length !== 1 ? 's' : ''}`;
+  }
+
+  loadCase(caseId) {
+    const caseData = this.historyCache.find(c => c.case_id === caseId);
+    if (!caseData) {
+      this.showToast('Case not found in local cache.', 'error');
+      return;
+    }
+    
+    this.currentCasePayload = caseData;
+    this.showScreen('screen-assessment');
+    
+    document.getElementById('patient_age').value = caseData.patient_age || '';
+    document.getElementById('geographic_region').value = caseData.geographic_region || '';
+    document.getElementById('skin_phototype').value = caseData.skin_phototype || '';
+    document.getElementById('occupation').value = caseData.occupation || '';
+    document.getElementById('complaint').value = caseData.complaint || '';
+    document.getElementById('lesion').value = caseData.lesion || '';
+    document.getElementById('tests').value = caseData.tests || '';
+    document.getElementById('lesion_history').value = caseData.lesion_history || '';
+    document.getElementById('history_duration').value = caseData.history_duration || '';
+    document.getElementById('change_pattern').value = caseData.change_pattern || '';
+    
+    if (caseData.image_data) {
+      this.uploadedImage = caseData.image_data;
+      const preview = document.getElementById('image-preview');
+      const container = document.getElementById('image-preview-container');
+      const uploadArea = document.querySelector('.image-upload');
+      if (preview) preview.src = caseData.image_data;
+      if (container) container.classList.remove('hidden');
+      if (uploadArea) uploadArea.style.display = 'none';
+    }
+    
+    this.showToast('Case loaded. Click "Start AI Analysis" to re-run.', 'info');
   }
 
   filterHistory() {
     const query = document.getElementById('history-search').value.toLowerCase();
     const filtered = this.historyCache.filter(c => {
-      return c.complaint.toLowerCase().includes(query) || 
-             c.geographic_region.toLowerCase().includes(query) ||
-             c.patient_age.toString().includes(query);
+      return (c.complaint && c.complaint.toLowerCase().includes(query)) || 
+             (c.geographic_region && c.geographic_region.toLowerCase().includes(query)) ||
+             (c.patient_age && c.patient_age.toString().includes(query));
     });
     this.renderHistory(filtered);
   }
-
-  // --- Case Details ---
-  viewCaseDetails(id) {
-    const caseData = this.historyCache.find(c => c.case_id === id);
-    if (!caseData) {
-       document.getElementById('history-container').innerHTML = `<p style="color: #ef4444;">Error: Case not found in local cache.</p>`;
-       return;
-    }
-
-    this.currentViewCaseId = id;
-    this.showScreen('screen-case-details');
-
-    const d = new Date(caseData.timestamp).toLocaleString();
-    document.getElementById('details-date').innerText = d;
-
-    // Fill Demographics
-    document.getElementById('details-demographics').innerHTML = `
-        <p><strong>Age:</strong> ${this.sanitizeEscape(caseData.patient_age.toString())}</p>
-        <p><strong>Region:</strong> ${this.sanitizeEscape(caseData.geographic_region)}</p>
-        <p><strong>Phototype:</strong> ${this.sanitizeEscape(caseData.skin_phototype)}</p>
-        <p><strong>Occupation:</strong> ${this.sanitizeEscape(caseData.occupation)}</p>
-    `;
-
-    // Fill Assessment
-    document.getElementById('details-assessment').innerHTML = `
-        <p><strong>Complaint:</strong> ${this.sanitizeEscape(caseData.complaint)}</p>
-        <p><strong>Lesion:</strong> ${this.sanitizeEscape(caseData.lesion)}</p>
-        <p><strong>Symptoms:</strong> ${this.sanitizeEscape(caseData.symptoms)}</p>
-        <p><strong>Tests:</strong> ${this.sanitizeEscape(caseData.tests)}</p>
-    `;
-
-    // Check for structured data. Even if one exists, we prefer structured view.
-    const hasStructuredData = (caseData.diagnoses && caseData.diagnoses !== "None specified by AI") || 
-                              (caseData.reasoning && caseData.reasoning !== "None specified by AI");
-
-    if (hasStructuredData) {
-        document.getElementById('details-structured').style.display = 'block';
-        if (document.getElementById('details-fallback')) document.getElementById('details-fallback').style.display = 'none';
-
-        document.getElementById('details-diagnoses').innerHTML = this.formatStructuredHTML(caseData.diagnoses || "No specific diagnoses recorded.");
-        document.getElementById('details-reasoning').innerHTML = this.formatStructuredHTML(caseData.reasoning || "No clinical reasoning recorded.");
-        document.getElementById('details-tests').innerHTML = this.formatStructuredHTML(caseData.tests || "No recommended tests recorded.");
-        
-        const referralBox = document.getElementById('details-referral');
-        if (referralBox) referralBox.innerHTML = this.formatStructuredHTML(caseData.referral || "No specific referral advice.");
-    } else {
-        document.getElementById('details-structured').style.display = 'none';
-        const fallbackBox = document.getElementById('details-fallback');
-        if (fallbackBox) {
-            fallbackBox.style.display = 'block';
-            document.getElementById('details-raw').innerHTML = `<div class="rich-text">${this.formatStructuredHTML(caseData.raw_ai_response || caseData.ai_diagnosis || "No AI analysis data found.")}</div>`;
-        }
-    }
-
-    // Treatment
-    const treatmentList = caseData.treatment_list || [];
-    if (treatmentList.length > 0) {
-        document.getElementById('details-treatment-box').style.display = 'block';
-        document.getElementById('details-treatment').innerHTML = this.formatStructuredHTML(treatmentList.join('\n'));
-    } else {
-        // Fallback for older cases using raw text
-        const treatmentText = caseData.raw_ai_response || caseData.ai_diagnosis || "";
-        const treatIdx = treatmentText.toLowerCase().indexOf('treatment suggestions');
-        if (treatIdx !== -1) {
-            document.getElementById('details-treatment-box').style.display = 'block';
-            let endIdx = treatmentText.length;
-            const noteIdx = treatmentText.toLowerCase().indexOf('important notice');
-            if (noteIdx !== -1) endIdx = noteIdx;
-            document.getElementById('details-treatment').innerHTML = this.formatStructuredHTML(treatmentText.substring(treatIdx, endIdx).trim());
-        } else {
-            document.getElementById('details-treatment-box').style.display = 'none';
-        }
-    }
-
-    // Pending Re-run capability
-    if (caseData.status === 'pending') {
-        document.getElementById('details-retry-container').style.display = 'block';
-    } else {
-        document.getElementById('details-retry-container').style.display = 'none';
-    }
-
-    // SOAP Note Display
-    if (caseData.soap_note) {
-        document.getElementById('details-soap-box').style.display = 'block';
-        document.getElementById('details-soap').innerText = caseData.soap_note;
-    } else {
-        document.getElementById('details-soap-box').style.display = 'none';
-    }
-  }
-
-  async retryPendingAnalysis() {
-    if (!this.currentViewCaseId) return;
-    
-    const caseData = this.historyCache.find(c => c.case_id === this.currentViewCaseId);
-    if (!caseData) return;
-
-    // Load payload directly back into active flow
-    this.currentCasePayload = Object.assign({}, caseData);
-    
-    // Switch to assessment screen invisibly and hit analyze mapping loading spinner beautifully
-    this.showScreen('screen-assessment');
-    
-    // Temporarily replace form values so loading state looks correct to the user visually
-    document.getElementById('complaint').value = caseData.complaint;
-    document.getElementById('patient_age').value = caseData.patient_age;
-    document.getElementById('geographic_region').value = caseData.geographic_region;
-    document.getElementById('skin_phototype').value = caseData.skin_phototype;
-    document.getElementById('occupation').value = caseData.occupation;
-    document.getElementById('lesion').value = caseData.lesion;
-    document.getElementById('symptoms').value = caseData.symptoms;
-    document.getElementById('tests').value = caseData.tests;
-
-    await this.analyzeCase();
-  }
-
-  async copyCaseSummary() {
-    if (!this.currentViewCaseId) return;
-    const c = this.historyCache.find(x => x.case_id === this.currentViewCaseId);
-    if (!c) return;
-
-    const summary = `
-CASE SUMMARY: ${new Date(c.timestamp).toLocaleString()}
-------------------------------------------
-PATIENT: Age ${c.patient_age}, ${c.geographic_region}, ${c.skin_phototype}
-COMPLAINT: ${c.complaint}
-DIAGNOSES: ${c.diagnoses || "N/A"}
-REASONING: ${c.reasoning || "N/A"}
-TREATMENT: ${c.treatment || "N/A"}
-------------------------------------------
-GENERATED BY DERMACARE AI
-    `.trim();
-
-    navigator.clipboard.writeText(summary).then(() => {
-        alert("Case summary copied to clipboard!");
-    });
-  }
-
-  async exportCasePDF() {
-    if (!this.currentViewCaseId) return;
-    const c = this.historyCache.find(x => x.case_id === this.currentViewCaseId);
-    if (!c) return;
-
-    try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        let y = 20;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.setTextColor(0, 123, 255);
-        doc.text("Clinical Case Report", 15, y);
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Record ID: ${c.case_id}`, 15, y);
-        y += 5;
-        doc.text(`Date: ${new Date(c.timestamp).toLocaleString()}`, 15, y);
-        y += 15;
-
-        // Content Sections
-        const sections = [
-            { title: "PATIENT DEMOGRAPHICS", content: `Age: ${c.patient_age}\nRegion: ${c.geographic_region}\nPhototype: ${c.skin_phototype}` },
-            { title: "CLINICAL FINDINGS", content: `Complaint: ${c.complaint}\nLesion: ${c.lesion || "N/A"}\nSymptoms: ${c.symptoms || "N/A"}` },
-            { title: "AI ANALYSIS", content: `Possible Diagnoses:\n${c.diagnoses || "N/A"}\n\nReasoning:\n${c.reasoning || "N/A"}` },
-            { title: "SOAP NOTE", content: c.soap_note || "No SOAP note generated for this case." }
-        ];
-
-        sections.forEach(s => {
-            if (y > 260) { doc.addPage(); y = 20; }
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(12);
-            doc.setTextColor(0, 0, 0);
-            doc.text(s.title, 15, y);
-            y += 7;
-
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            const splitLines = doc.splitTextToSize(s.content, 180);
-            splitLines.forEach(line => {
-                if (y > 280) { doc.addPage(); y = 20; }
-                doc.text(line, 15, y);
-                y += 6;
-            });
-            y += 10;
-        });
-
-        doc.save(`Case_Report_${c.case_id.substring(0, 8)}.pdf`);
-    } catch (err) {
-        console.error(err);
-        alert("Failed to export PDF.");
-    }
-  }
-
-  async deleteCurrentCase() {
-    if (!this.currentViewCaseId) return;
-    try {
-        await deleteCase(this.currentViewCaseId);
-        this.currentViewCaseId = null;
-        this.showHistory(); // Refresh view actively
-    } catch (err) {
-        console.error("Deletion failed:", err);
-        alert("Failed to delete the case.");
-    }
-  }
   
   // --- Settings Methods ---
-  async testAIConnection() {
-    const modelName = document.getElementById('settings-model-name')?.value || 'llama3:8b';
+  async   testAIConnection() {
+    const modelName = document.getElementById('settings-model-name')?.value || 'llama3.1';
     const apiUrl = document.getElementById('settings-api-url')?.value || 'http://127.0.0.1:11434';
     
     try {
@@ -1338,41 +1175,6 @@ GENERATED BY DERMACARE AI
       }
     } catch (err) {
       this.showToast('Cannot connect to Ollama. Is it running?', 'error');
-    }
-  }
-  
-  toggleDarkMode(checkbox) {
-    if (checkbox.checked) {
-      document.body.classList.add('dark-mode');
-      localStorage.setItem('dermacare-theme', 'dark');
-    } else {
-      document.body.classList.remove('dark-mode');
-      localStorage.setItem('dermacare-theme', 'light');
-    }
-  }
-  
-  async exportAllCases() {
-    try {
-      const cases = await getCases();
-      if (cases.length === 0) {
-        this.showToast('No cases to export.', 'warning');
-        return;
-      }
-      
-      const blob = new Blob([JSON.stringify(cases, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dermacare_cases_export_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      this.showToast(`Exported ${cases.length} cases successfully.`, 'success');
-    } catch (err) {
-      console.error('Export failed:', err);
-      this.showToast('Failed to export cases.', 'error');
     }
   }
   
@@ -1410,40 +1212,14 @@ GENERATED BY DERMACARE AI
   }
   
   loadSettings() {
-    // Load dark mode preference
-    const theme = localStorage.getItem('dermacare-theme');
-    const darkModeCheckbox = document.getElementById('settings-dark-mode');
-    if (theme === 'dark') {
-      document.body.classList.add('dark-mode');
-      if (darkModeCheckbox) darkModeCheckbox.checked = true;
-    }
-    
-    // Load API URL
     const savedApiUrl = localStorage.getItem('dermacare-api-url');
     if (savedApiUrl && document.getElementById('settings-api-url')) {
       document.getElementById('settings-api-url').value = savedApiUrl;
     }
     
-    // Load model name
     const savedModel = localStorage.getItem('dermacare-model');
     if (savedModel && document.getElementById('settings-model-name')) {
       document.getElementById('settings-model-name').value = savedModel;
-    }
-    
-    // Update case count
-    this.updateCaseCount();
-  }
-  
-  async updateCaseCount() {
-    try {
-      const cases = await getCases();
-      const el = document.getElementById('case-count');
-      if (el) {
-        el.textContent = `${cases.length} cases stored`;
-      }
-    } catch (err) {
-      const el = document.getElementById('case-count');
-      if (el) el.textContent = 'Unable to load';
     }
   }
   
@@ -1455,9 +1231,25 @@ GENERATED BY DERMACARE AI
     if (modelName) localStorage.setItem('dermacare-model', modelName);
     
     this.showToast('Settings saved.', 'success');
+    this.showScreen('screen-dashboard');
   }
 
 }
 
 // Initialize safely to preserve state during navigation in SPA
-window.app = window.app || new AppController();
+document.addEventListener('DOMContentLoaded', function() {
+  if (!window.app) {
+    window.app = new AppController();
+  }
+});
+
+// Fallback initialization if DOMContentLoaded already fired
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  if (!window.app) {
+    setTimeout(() => {
+      if (!window.app) {
+        window.app = new AppController();
+      }
+    }, 100);
+  }
+}
