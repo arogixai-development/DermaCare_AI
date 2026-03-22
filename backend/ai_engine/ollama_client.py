@@ -329,7 +329,7 @@ def _get_prompt_hash(prompt: str) -> str:
 def run_ai_optimized(prompt: str, max_tokens: int = 2000, format: str = None) -> str:
     """
     Run AI inference with optimized parameters for phi3.
-    Reduced context window (2048) for better performance on limited VRAM.
+    Forces JSON mode when requested for reliable parsing.
     """
     status = check_ollama_connection()
     if not status["connected"]:
@@ -337,11 +337,11 @@ def run_ai_optimized(prompt: str, max_tokens: int = 2000, format: str = None) ->
     
     options = {
         "num_predict": min(max_tokens, 2048),
-        "temperature": 0.3,
-        "top_p": 0.9,
+        "temperature": 0.2,  # Lower temperature for more consistent JSON
+        "top_p": 0.85,
         "top_k": 40,
-        "repeat_penalty": 1.1,
-        "num_ctx": 2048,  # Reduced for phi3 performance
+        "repeat_penalty": 1.05,
+        "num_ctx": 2048,
         "mirostat": 0,
     }
     
@@ -350,15 +350,25 @@ def run_ai_optimized(prompt: str, max_tokens: int = 2000, format: str = None) ->
         "messages": [{"role": "user", "content": prompt}], 
         "options": options
     }
-    if format:
-        kwargs["format"] = format
     
-    # Add timeout to prevent hanging
+    # CRITICAL: Always force JSON format when requested
+    if format == "json":
+        kwargs["format"] = "json"
+        logger.info(f"[OLLAMA] Requesting JSON format with model: {get_model_name()}")
+    
     try:
-        response = ollama.chat(**kwargs, timeout=180)
-        return response["message"]["content"]
+        response = ollama.chat(**kwargs)
+        content = response["message"]["content"]
+        
+        # Debug: Log response start
+        if content:
+            logger.info(f"[OLLAMA] Response received ({len(content)} chars), starts with: {content[:50]}...")
+        else:
+            logger.warning("[OLLAMA] Empty response received")
+            
+        return content
     except Exception as e:
-        logger.error(f"Ollama chat timeout/error: {e}")
+        logger.error(f"Ollama chat error: {e}")
         raise OllamaConnectionError(f"AI request failed: {str(e)}")
 
 

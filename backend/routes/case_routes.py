@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from backend.database.db import get_db, engine, Base
 from backend.services.case_service import upsert_case, get_all_cases, get_case_by_id, delete_case
+from backend.auth.middleware import require_auth
 
 # Create tables gracefully if they don't exist
 try:
@@ -30,7 +31,7 @@ class CaseSchema(BaseModel):
     status: Optional[str] = "completed"
 
 @router.post("/cases")
-def create_or_update_case(case_data: CaseSchema, db: Session = Depends(get_db)):
+def create_or_update_case(case_data: CaseSchema, db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
         result = upsert_case(db, case_data.model_dump())
         return {"message": "Case saved successfully", "case_id": result.case_id}
@@ -38,7 +39,7 @@ def create_or_update_case(case_data: CaseSchema, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.get("/cases")
-def get_cases(db: Session = Depends(get_db)):
+def get_cases(db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
         cases = get_all_cases(db)
         return {"cases": cases}
@@ -46,7 +47,7 @@ def get_cases(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.get("/cases/{case_id}")
-def get_case(case_id: str, db: Session = Depends(get_db)):
+def get_case(case_id: str, db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
         case = get_case_by_id(db, case_id)
         if not case:
@@ -58,7 +59,7 @@ def get_case(case_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.delete("/cases/{case_id}")
-def remove_case(case_id: str, db: Session = Depends(get_db)):
+def remove_case(case_id: str, db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
         success = delete_case(db, case_id)
         if not success:

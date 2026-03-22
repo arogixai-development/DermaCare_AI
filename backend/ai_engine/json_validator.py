@@ -291,58 +291,36 @@ def parse_and_validate(
     """
     Parse *raw_str* as JSON, validate against *schema*, and return a
     guaranteed-structurally-correct dict.
-
-    Pipeline
-    --------
-    1. Guard against empty / None input.
-    2. ``extract_json_from_text`` – strip prose / markdown fences.
-    3. ``json.loads()``           – decode JSON.
-    4. ``validate_schema()``      – type-check and coerce missing fields.
-    5. Convert legacy fields to new format for backward compatibility.
-
-    Parameters
-    ----------
-    raw_str  : Raw text returned by the LLM.
-    schema   : Schema dict (``required_keys`` + ``defaults``).
-    fallback : Returned as-is when parsing fails completely.
-    context  : Label used in log messages (e.g. ``"diagnosis"``).
-
-    Returns
-    -------
-    (result_dict, success)
-        success is False only when ``json.loads`` raises an exception,
-        meaning the LLM produced completely unparseable output.
     """
+    logger.info(f"[{context}] parse_and_validate called with raw_str length: {len(raw_str) if raw_str else 0}")
+    
     if not raw_str or not raw_str.strip():
-        logger.error("[%s] LLM returned an empty response", context)
+        logger.error(f"[{context}] LLM returned an empty or whitespace-only response")
         return dict(fallback), False
 
     cleaned = extract_json_from_text(raw_str)
+    logger.info(f"[{context}] Extracted JSON length: {len(cleaned)}")
 
     try:
         parsed = json.loads(cleaned)
+        logger.info(f"[{context}] JSON parsed successfully, keys: {list(parsed.keys()) if isinstance(parsed, dict) else 'not a dict'}")
     except json.JSONDecodeError as exc:
-        logger.error(
-            "[%s] json.loads() failed: %s | Cleaned snippet: %.300s",
-            context, exc, cleaned,
-        )
+        logger.error(f"[{context}] json.loads() FAILED: {exc}")
+        logger.error(f"[{context}] Raw response (first 500 chars): {raw_str[:500]}")
+        logger.error(f"[{context}] Cleaned response (first 500 chars): {cleaned[:500]}")
         return dict(fallback), False
 
     if not isinstance(parsed, dict):
-        logger.error(
-            "[%s] Parsed JSON is not a dict (got %s)",
-            context, type(parsed).__name__,
-        )
+        logger.error(f"[{context}] Parsed JSON is not a dict (got {type(parsed).__name__})")
         return dict(fallback), False
 
     parsed = convert_legacy_to_new(parsed)
 
     is_valid, coerced = validate_schema(parsed, schema)
 
-    if not is_valid:
-        logger.warning(
-            "[%s] Schema had issues; coercion applied – result is still usable",
-            context,
-        )
+    if is_valid:
+        logger.info(f"[{context}] Schema validation PASSED")
+    else:
+        logger.warning(f"[{context}] Schema validation had issues - using defaults for missing fields")
 
     return coerced, True

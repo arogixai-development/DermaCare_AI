@@ -1,10 +1,11 @@
 """
 Diagnosis Service – DermaCare AI (Production)
-============================================
+===========================================
 Glass Box AI with:
 - Monte Carlo uncertainty estimation
 - Gated Multimodal Architecture
 - Production prompts for reliable JSON
+- Bounded LRU cache to prevent memory leaks
 """
 
 import json
@@ -13,6 +14,7 @@ import logging
 import time
 import statistics
 from typing import Any, Dict, Optional
+from functools import lru_cache
 
 from backend.ai_engine.ollama_client import run_ai_with_retry
 from backend.ai_engine.json_validator import parse_and_validate
@@ -21,48 +23,40 @@ from backend.config import get_model_name
 
 logger = logging.getLogger("DermaCare_AI.diagnosis_service")
 
+# SECURITY: Bounded cache with max 100 entries to prevent memory exhaustion
+CACHE_MAX_SIZE = 100
 _last_diagnosis_cache: Dict[str, Any] = {}
 _diagnosis_response_cache: Dict[str, Any] = {}
 
 MONTE_CARLO_ITERATIONS = 1
 USE_MONTE_CARLO = False
 
+# Maximum image data size (2MB) to prevent DoS
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB in bytes
 
-FALLBACK_RESPONSE = {
-    "differential_diagnosis": [
-        {"condition": "Nummular Eczema (Discoid Eczema)", "probability": "40%", "supporting_features": ["coin-shaped lesions", "pruritic", "acute onset"], "differentials_to_exclude": ["Psoriasis", "Tinea corporis"]},
-        {"condition": "Psoriasis Vulgaris", "probability": "35%", "supporting_features": ["silvery scales", "extensor surfaces", "chronic course"], "differentials_to_exclude": ["Eczema", "Seborrheic dermatitis"]},
-        {"condition": "Contact Dermatitis", "probability": "25%", "supporting_features": ["localized", "irregular borders", "known exposure"], "differentials_to_exclude": ["Eczema", "Cellulitis"]}
-    ],
-    "lesion_analysis": [
-        {"morphology": "Well-demarcated erythematous plaque with characteristic silvery-white scales on extensor surface", "distribution": "Localized to right elbow, unilateral presentation", "color_patterns": ["erythema", "scaling", "possible Koebner phenomenon"], "ABCDE_assessment": "A: Asymmetric | B: Irregular borders | C: Varied erythema | D: ~3cm | E: Recent onset (2 weeks)", "dermoscopy_findings": "Silvery scales, dilated tortuous capillaries (glomerular vessels), Auspitz sign may be positive"}
-    ],
-    "recommended_tests": [
-        "Skin biopsy (punch biopsy) for histopathological confirmation of diagnosis",
-        "KOH preparation to rule out dermatophyte fungal infection",
-        "Patch testing for contact allergens if contact dermatitis suspected"
-    ],
-    "clinical_reasoning": "The clinical presentation of a well-demarcated erythematous plaque with silvery scales on an extensor surface is most consistent with psoriasis vulgaris or nummular eczema. Key differentiating factors include the acute onset and significant pruritus favoring eczema, while the extensor location and characteristic morphology favor psoriasis. Contact dermatitis should be considered if there is a history of allergen exposure. The 2-week duration suggests an acute or subacute process. Age of patient (45 years) and regional epidemiology should be considered. Risk stratification: LOW for malignancy based on morphology, but moderate concern for chronicity and treatment resistance.",
-    "soap_note": {
-        "S": "Patient is a 45-year-old presenting with a red, scaly patch on the right elbow for approximately 2 weeks. The lesion is described as pruritic and has gradually increased in size. Patient reports dry skin and occasional itching in other areas. No known triggers identified. Over-the-counter moisturizers have provided minimal relief. No fever, chills, or systemic symptoms reported.",
-        "O": "Physical examination reveals a well-demarcated erythematous plaque approximately 3cm in diameter on the extensor surface of the right elbow. The plaque features silvery-white scales with surrounding erythema. No nail pitting or onycholysis observed. No lymphadenopathy. No signs of secondary bacterial infection (no pustules, crusting, or discharge). Remainder of skin examination shows mild xerosis.",
-        "A": "Primary differential: Nummular eczema versus Psoriasis vulgaris. The coin-shaped morphology and significant pruritus favor nummular eczema, while the extensor location and silvery scales favor psoriasis. Contact dermatitis less likely without identifiable trigger. Chronic nature suggests psoriasis as primary. Differentials: Tinea corporis (rule out with KOH), Seborrheic dermatitis. Risk level: LOW malignancy risk, MODERATE chronicity risk.",
-        "P": "1. HIGH-POTENCY TOPICAL CORTICOSTEROID: Clobetasol propionate 0.05% ointment, apply thin layer BID to affected area for 2 weeks\n2. TOPICAL VITAMIN D ANALOG: Calcipotriene 0.005% cream, apply once daily to plaque, may combine with steroid\n3. EMOLLIENT THERAPY: Thick petrolatum-based ointment, apply liberally at least twice daily, especially after bathing\n4. PATIENT EDUCATION: Avoid scratching, use lukewarm water, apply moisturizer within 3 minutes of bathing\n5. FOLLOW-UP: Return in 2 weeks for reassessment. If no improvement, escalate to narrowband UVB phototherapy or consider systemic therapy."
-    },
-    "treatment_plan": [
-        {"medication": "Clobetasol Propionate 0.05% Ointment (Ultra-high potency)", "application": "Apply thin layer ONLY to affected plaque, rub in gently until absorbed. Use finger-tip unit (FTU) for guidance: 1 FTU = 0.5g = covers 2 palms", "duration": "Maximum 2 weeks continuous use, then reassess. Do not use on face, intertriginous areas, or thin skin", "education": "May cause skin atrophy with prolonged use. Stop if skin becomes thin, shiny, or shows striae. Do not bandage unless instructed."},
-        {"medication": "Calcipotriene (Calcipotriol) 0.005% Cream or Ointment", "application": "Apply to plaque once daily, can be applied at different time of day than corticosteroid. Safe for long-term maintenance therapy", "duration": "4-8 weeks for initial clearing, then twice weekly maintenance. May be combined with topical steroid", "education": "May cause transient skin irritation. Avoid excessive sun exposure. Wash hands after application. Not for use in patients with calcium disorders."},
-        {"medication": "Petrolatum-based Emollient (Vaseline, Aquaphor, or similar)", "application": "Apply liberally to affected area AND surrounding skin at least twice daily. Apply immediately after bathing while skin is still damp", "duration": "Ongoing use indefinitely for maintenance and prevention of flares", "education": "Fragrance-free products preferred. Use thick ointments rather than lotions for better barrier repair. Apply 3-5 minutes after bathing."}
-    ],
-    "triage": "Routine",
-    "referral_indicators": ["Lesion does not respond to topical therapy within 4-6 weeks", "Atypical morphology (irregular pigmentation, rapid growth, ulceration)", "Extensive body surface area involvement (>10%)", "Diagnostic uncertainty after biopsy"],
-    "follow_up": "Return in 2 weeks for clinical reassessment. If marked improvement, taper to maintenance therapy. If no improvement, consider biopsy and/or referral to dermatology. If worsening (spreading, infection signs), return immediately.",
-    "warnings": ["Avoid prolonged use of potent steroids on elbows (thin skin)", "Monitor for secondary bacterial infection (increased redness, pain, pus)", "Psoriasis can be associated with psoriatic arthritis - monitor for joint symptoms"],
-    "_fallback": True
-}
+
+def _validate_image_size(image_data: Optional[str]) -> bool:
+    """Validate that image data is within size limit."""
+    if not image_data:
+        return True
+    # Base64 encoding increases size by ~33%, so we check decoded size
+    try:
+        import base64
+        # Remove data URI prefix if present
+        if "," in image_data:
+            image_data = image_data.split(",")[1]
+        decoded = base64.b64decode(image_data)
+        if len(decoded) > MAX_IMAGE_SIZE:
+            logger.warning(f"Image size {len(decoded)} exceeds limit {MAX_IMAGE_SIZE}")
+            return False
+        return True
+    except Exception as e:
+        logger.warning(f"Image validation failed: {e}")
+        return False
 
 
 def _get_case_hash(case_data: dict) -> str:
+    """Generate a hash for the case to use as cache key."""
     essential = {
         "complaint": case_data.get("complaint", ""),
         "lesion": case_data.get("lesion", ""),
@@ -71,6 +65,109 @@ def _get_case_hash(case_data: dict) -> str:
         "geographic_region": case_data.get("geographic_region", ""),
     }
     return hashlib.sha256(json.dumps(essential, sort_keys=True).encode()).hexdigest()
+
+
+def _cleanup_cache():
+    """Remove oldest entries if cache exceeds max size."""
+    if len(_diagnosis_response_cache) > CACHE_MAX_SIZE:
+        # Remove oldest 20% of entries
+        keys_to_remove = list(_diagnosis_response_cache.keys())[:int(CACHE_MAX_SIZE * 0.2)]
+        for key in keys_to_remove:
+            del _diagnosis_response_cache[key]
+        logger.info(f"Cache cleanup: removed {len(keys_to_remove)} entries")
+
+
+def create_dynamic_fallback(case_data: dict) -> dict:
+    """
+    Create a DYNAMIC fallback response based on ACTUAL patient data.
+    This ensures the AI always returns relevant information even when LLM parsing fails.
+    """
+    age = str(case_data.get('patient_age', 'Unknown'))
+    region = case_data.get('geographic_region', 'Unknown')
+    complaint = case_data.get('complaint', 'Dermatological concern')
+    lesion = case_data.get('lesion', 'Not specified')
+    symptoms = case_data.get('symptoms', 'Not specified')
+    duration = case_data.get('history_duration', 'Not specified')
+    phototype = case_data.get('skin_phototype', 'Type III')
+    
+    logger.warning(f"[DIAGNOSIS] Using dynamic fallback for patient: {age}yo, complaint: {complaint[:50]}...")
+    
+    return {
+        "differential_diagnosis": [
+            {
+                "condition": "Provisional Dermatitis (pending clinical confirmation)",
+                "probability": "40%",
+                "supporting_features": ["Requires clinical examination", "Based on presented symptoms"],
+                "differentials_to_exclude": ["Psoriasis", "Fungal infection", "Malignancy"]
+            },
+            {
+                "condition": "Provisional Eczema (pending clinical confirmation)",
+                "probability": "35%",
+                "supporting_features": ["Requires clinical examination", "Symptom-based provisional"],
+                "differentials_to_exclude": ["Contact dermatitis", "Seborrheic dermatitis"]
+            },
+            {
+                "condition": "Provisional Skin Condition (pending clinical confirmation)",
+                "probability": "25%",
+                "supporting_features": ["Requires further evaluation"],
+                "differentials_to_exclude": ["Infection", "Allergic reaction"]
+            }
+        ],
+        "lesion_analysis": [
+            {
+                "morphology": f"Clinical description pending: {lesion[:100] if lesion else 'Not specified'}",
+                "distribution": f"Affected area: Region {region}",
+                "color_patterns": ["Pending visual examination"],
+                "ABCDE_assessment": "Assessment pending clinical examination",
+                "dermoscopy_findings": "Visual examination recommended"
+            }
+        ],
+        "recommended_tests": [
+            "Clinical dermatological examination recommended",
+            "Consider skin biopsy if lesion persists",
+            "Patch testing if allergic etiology suspected",
+            "KOH preparation if fungal infection suspected"
+        ],
+        "clinical_reasoning": f"AI analysis incomplete due to LLM parsing issue. Patient profile: {age}-year-old from {region}, Skin Type: {phototype}. Chief Complaint: {complaint}. Lesion: {lesion}. Symptoms: {symptoms}. Duration: {duration}. Please retry analysis or consult dermatologist for definitive diagnosis.",
+        "soap_note": {
+            "S": f"Patient ({age}yo from {region}) presents with: {complaint}. Lesion: {lesion}. Symptoms: {symptoms}. Duration: {duration}.",
+            "O": "Objective examination pending. Visual inspection of affected area required.",
+            "A": f"Provisional assessment: Dermatological condition requires clinical examination. Patient data: {age}yo, {region}, {phototype}.",
+            "P": "1. Clinical examination recommended\n2. Consider biopsy if needed\n3. Follow-up in 1-2 weeks if symptoms persist\n4. Return if condition worsens"
+        },
+        "treatment_plan": [
+            {
+                "medication": "Clinical Evaluation Required",
+                "application": "Please consult with dermatologist for proper assessment",
+                "duration": "Immediate",
+                "education": "Do not self-diagnose. Seek professional medical evaluation."
+            },
+            {
+                "medication": "Symptomatic Relief (pending diagnosis)",
+                "application": "Keep affected area clean and dry. Avoid scratching.",
+                "duration": "Until clinical evaluation",
+                "education": "Monitor for changes in size, color, or symptoms."
+            }
+        ],
+        "triage": "Routine",
+        "referral_indicators": [
+            "Lesion does not respond to treatment within 2 weeks",
+            "Atypical appearance (irregular borders, changing color, bleeding)",
+            "Systemic symptoms (fever, malaise)",
+            "Extensive body surface area involvement"
+        ],
+        "follow_up": f"Return in 1-2 weeks for reassessment. If symptoms worsen or new symptoms develop, seek immediate medical attention. Patient: {age}yo from {region}.",
+        "warnings": ["This is a FALLBACK response - AI analysis was incomplete", "Please verify with clinical examination", "Consult dermatologist for definitive diagnosis"],
+        "_fallback": True,
+        "_fallback_reason": "LLM JSON parsing failed - dynamic fallback based on patient data"
+    }
+
+
+FALLBACK_RESPONSE = create_dynamic_fallback({
+    'patient_age': 'Unknown',
+    'geographic_region': 'Unknown',
+    'complaint': 'General dermatological concern'
+})
 
 
 def _run_monte_carlo(prompt: str) -> Dict[str, Any]:
@@ -198,12 +295,27 @@ def _map_confidence(consensus: float, variance: float) -> str:
 
 def generate_diagnosis(case_data: dict) -> dict:
     """Production diagnosis with Glass Box AI."""
+    
+    logger.info(f"[DIAGNOSIS] Starting diagnosis for patient: {case_data.get('patient_age')}yo, complaint: {str(case_data.get('complaint', ''))[:50]}...")
+    
+    # SECURITY: Validate image size before processing
+    if case_data.get("image_data") and not _validate_image_size(case_data.get("image_data")):
+        logger.warning("Image exceeds maximum size limit of 2MB")
+        return {
+            "error": "Image too large",
+            "detail": "Image data exceeds the maximum size limit of 2MB. Please use a smaller image.",
+            "status": "rejected"
+        }
+    
     case_hash = _get_case_hash(case_data)
     
     if case_hash in _diagnosis_response_cache:
         cached = dict(_diagnosis_response_cache[case_hash])
         cached["_cached"] = True
+        logger.info(f"[DIAGNOSIS] Returning cached result for case hash: {case_hash[:16]}...")
         return cached
+    
+    _cleanup_cache()
     
     start_time = time.time()
     has_history = bool(case_data.get("lesion_history") or case_data.get("history_duration"))
@@ -232,6 +344,7 @@ def generate_diagnosis(case_data: dict) -> dict:
             image_quality_gate = "unknown"
     
     prompt = _build_prompt(case_data)
+    logger.info(f"[DIAGNOSIS] Generated prompt ({len(prompt)} chars) for patient data")
     
     if USE_MONTE_CARLO:
         mc_metrics = _run_monte_carlo(prompt)
@@ -240,11 +353,24 @@ def generate_diagnosis(case_data: dict) -> dict:
         mc_metrics = {"variance_score": 0.4, "confidence_interval": [40, 70], "consensus_score": 0.5, "uncertainty_flag": False, "discordant_indicators": [], "recommendations": ["Provide detailed clinical information"]}
         confidence = "MEDIUM"
     
+    logger.info("[DIAGNOSIS] Calling LLM...")
     raw = run_ai_with_retry(prompt, max_tokens=2048, format="json", max_retries=2)
-    parsed, success = parse_and_validate(raw, {"required_keys": {}, "defaults": {}}, FALLBACK_RESPONSE, "diagnosis")
+    
+    # DEBUG: Log raw LLM response
+    logger.info(f"[DIAGNOSIS] Raw LLM response length: {len(raw)} chars")
+    logger.info(f"[DIAGNOSIS] Raw LLM response (first 300 chars): {raw[:300]}...")
+    
+    # Use dynamic fallback based on patient data
+    dynamic_fallback = create_dynamic_fallback(case_data)
+    parsed, success = parse_and_validate(raw, {"required_keys": {}, "defaults": {}}, dynamic_fallback, "diagnosis")
+    
+    logger.info(f"[DIAGNOSIS] JSON parsing success: {success}")
     
     llm_success = success and _is_valid_response(parsed)
-    result = parsed if llm_success else dict(FALLBACK_RESPONSE)
+    result = parsed if llm_success else dict(dynamic_fallback)
+    
+    if not llm_success:
+        logger.warning(f"[DIAGNOSIS] LLM response validation failed - using dynamic fallback")
     
     if non_skin_detected:
         confidence = "LOW"
@@ -326,47 +452,89 @@ def _is_valid_response(data: dict) -> bool:
 
 
 def _build_prompt(data: dict) -> str:
+    """
+    Build a reliable prompt for dermatology diagnosis.
+    Optimized for phi3 model with clear instructions.
+    """
     age = str(data.get('patient_age', 'Unknown'))
     region = data.get('geographic_region', 'Unknown')
-    complaint = data.get('complaint', 'None')
-    lesion = data.get('lesion', 'None')
-    symptoms = data.get('symptoms', 'None')
-    phototype = data.get('skin_phototype', 'Type III')
-    history = data.get('lesion_history', '')
-    duration = data.get('history_duration', '')
-    changes = data.get('change_pattern', '')
+    complaint = data.get('complaint', 'Not provided')
+    lesion = data.get('lesion', 'Not provided')
+    symptoms = data.get('symptoms', 'Not provided')
+    phototype = data.get('skin_phototype', 'Not specified')
+    duration = data.get('history_duration', 'Not specified')
+    changes = data.get('change_pattern', 'Not specified')
+    history = data.get('lesion_history', 'None')
     
-    history_context = ""
-    if duration or history or changes:
-        history_context = f"\nHistory: Duration={duration}, Changes={changes}, Notes={history}"
-    
-    return f"""You are a dermatology AI assistant. Return ONLY valid JSON for medical diagnosis.
+    return f'''You are an expert dermatologist. Analyze this patient case and provide a clinical diagnosis.
 
-Patient: {age}yo from {region}, Skin type: {phototype}
-Complaint: {complaint}
-Lesion: {lesion}
-Symptoms: {symptoms}{history_context}
+PATIENT INFORMATION:
+- Age: {age} years old
+- Geographic Region: {region}
+- Skin Type: {phototype}
 
-Return EXACTLY this JSON (no other text):
+CLINICAL PRESENTATION:
+- Chief Complaint: {complaint}
+- Lesion Description: {lesion}
+- Symptoms: {symptoms}
+- Duration: {duration}
+- Change Pattern: {changes}
+- History Notes: {history if history else "None"}
+
+IMPORTANT INSTRUCTIONS:
+1. Analyze the patient's symptoms, age, and lesion description
+2. Generate 3 differential diagnoses with realistic probabilities (must sum to ~100%)
+3. Include supporting features and differentials to exclude
+4. Provide lesion analysis with morphology and distribution
+5. Recommend appropriate tests
+6. Give clinical reasoning based on THIS patient's data
+7. Create a complete SOAP note
+8. Suggest treatment plan with medications and instructions
+
+CRITICAL: All your analysis MUST be based on the patient information provided above. Do NOT make up patient ages, symptoms, or conditions that are not in the data.
+
+Return your response as valid JSON ONLY. No text before or after the JSON.
+
+JSON Format:
 {{
   "differential_diagnosis": [
-    {{"condition": "Condition Name", "probability": "XX%", "supporting_features": ["feature1", "feature2"]}}
+    {{
+      "condition": "Diagnosis name specific to this case",
+      "probability": "XX%",
+      "supporting_features": ["feature that matches patient data", "another relevant feature"],
+      "differentials_to_exclude": ["other conditions to rule out"]
+    }}
   ],
-  "clinical_reasoning": "Brief explanation",
-  "soap_note": "S: subjective | O: objective | A: assessment | P: plan",
+  "lesion_analysis": [
+    {{
+      "morphology": "Description based on lesion data: {lesion[:100] if lesion else 'Not specified'}",
+      "distribution": "Location based on patient complaint: {region}",
+      "color_patterns": ["Based on lesion description"],
+      "ABCDE_assessment": "Asymmetry, Border, Color, Diameter, Evolution assessment"
+    }}
+  ],
+  "recommended_tests": ["Test based on differential diagnoses"],
+  "clinical_reasoning": "Detailed explanation based on {age}yo patient from {region} presenting with {symptoms}. Lesion: {lesion[:100] if lesion else 'not specified'}.",
+  "soap_note": {{
+    "S": "Subjective: {age}yo from {region} presents with {complaint}. {symptoms}. Duration: {duration}.",
+    "O": "Objective: Examination reveals {lesion[:100] if lesion else 'lesion as described'}.",
+    "A": "Assessment: Based on presentation, differentials include [conditions from analysis]. Patient: {age}yo, {region}.",
+    "P": "Plan: [Treatment recommendations], follow-up in [timeframe]."
+  }},
   "treatment_plan": [
-    {{"medication": "Drug name", "application": "How to use", "duration": "Time period", "education": "Patient advice"}}
+    {{
+      "medication": "Medication appropriate for diagnosis",
+      "application": "How to apply/use this medication",
+      "duration": "Treatment duration",
+      "education": "Patient instructions"
+    }}
   ],
-  "triage": "Routine|Emergent|Urgent",
-  "referral_indicators": ["When to refer"],
-  "follow_up": "Timeframe"
+  "triage": "Routine",
+  "referral_indicators": ["When to refer to specialist"],
+  "follow_up": "Follow-up timeframe"
 }}
 
-Rules:
-- 3 differential diagnoses with realistic probabilities
-- 2+ treatment items
-- soap_note uses pipe separator: "S: text | O: text | A: text | P: text"
-- Return ONLY the JSON object, nothing else"""
+REMEMBER: Your response must be valid JSON only. Use double quotes. No markdown. No explanations.'''
 
 
 async def generate_diagnosis_async(case_data: dict) -> dict:

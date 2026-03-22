@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, List
 from backend.services.soap_service import generate_soap_optimized, get_soap_stats
+from backend.auth.middleware import require_auth
 
 router = APIRouter()
 
@@ -19,7 +20,7 @@ class SOAPRequest(BaseModel):
     tests: Optional[List[str]] = Field(default=None, max_length=30)
 
 @router.post("/soap")
-def soap(req: SOAPRequest):
+def soap(req: SOAPRequest, payload: dict = Depends(require_auth)):
     """Generate SOAP note - accepts full case data for fresh generation"""
     try:
         # Build case data dict from request

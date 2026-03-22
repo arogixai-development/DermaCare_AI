@@ -14,7 +14,89 @@
 </head>
 
 <body>
-  <div class="app-container">
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="login-logo">
+          <span class="material-icons">science</span>
+        </div>
+        <h1>DermaCare AI</h1>
+        <p>Clinical Decision Support System</p>
+      </div>
+      
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="login-username" class="form-input" placeholder="Enter email" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="login-password" class="form-input" placeholder="Enter password" required>
+        </div>
+        <div id="login-error" class="login-error" style="display: none;"></div>
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+          <span class="material-icons">login</span>
+          Sign In
+        </button>
+      </form>
+      
+      <div style="margin-top: 1rem; text-align: center;">
+        <button type="button" class="btn btn-secondary btn-full" id="create-account-btn">
+          Create Account
+        </button>
+      </div>
+      
+      <div class="login-footer">
+        <p>Secure local deployment</p>
+        <p style="font-size: 0.75rem; color: var(--on-surface-variant);">
+          Contact administrator for access
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNUP SCREEN -->
+  <div id="signup-screen" class="login-screen" style="display: none;">
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="login-logo">
+          <span class="material-icons">person_add</span>
+        </div>
+        <h1>Create Account</h1>
+        <p>Register as a new clinician</p>
+      </div>
+      
+      <form id="signup-form" class="login-form">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="signup-email" class="form-input" placeholder="Enter email address" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="signup-password" class="form-input" placeholder="Create password (min 6 chars)" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" id="signup-confirm" class="form-input" placeholder="Confirm password" required>
+        </div>
+        <div id="signup-error" class="login-error" style="display: none;"></div>
+        <button type="submit" class="btn btn-primary btn-full" id="signup-btn">
+          <span class="material-icons">how_to_reg</span>
+          Register
+        </button>
+        <button type="button" class="btn btn-secondary btn-full" style="margin-top: 0.5rem;" id="back-to-login-btn">
+          Back to Sign In
+        </button>
+      </form>
+      
+      <div class="login-footer">
+        <p>Contact admin for account approval</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container" id="app-container" style="display: none;">
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-brand">
@@ -51,10 +133,10 @@
           New Diagnosis
         </button>
         <div class="user-profile" style="margin-top: 1.5rem;">
-          <div class="user-avatar">SJ</div>
+          <div class="user-avatar" id="user-avatar">--</div>
           <div>
-            <div class="user-name">Dr. Sarah Johnson</div>
-            <div class="user-role">Dermatologist</div>
+            <div class="user-name" id="user-name">Loading...</div>
+            <div class="user-role" id="user-role">User</div>
           </div>
         </div>
       </div>
@@ -847,6 +929,18 @@
               <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; gap: 1rem; align-items: center;">
                   <div style="width: 2.5rem; height: 2.5rem; background: var(--surface-container); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span class="material-icons">logout</span>
+                  </div>
+                  <div>
+                    <p style="font-weight: 600; font-size: 0.875rem;">Sign Out</p>
+                    <p style="font-size: 0.75rem; color: var(--on-surface-variant);">End session securely.</p>
+                  </div>
+                </div>
+                <button class="btn btn-secondary btn-small" onclick="window.app.logout()">Sign Out</button>
+              </div>
+              <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                  <div style="width: 2.5rem; height: 2.5rem; background: var(--surface-container); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                     <span class="material-icons">cleaning_services</span>
                   </div>
                   <div>
@@ -903,6 +997,7 @@
       </div>
     </main>
   </div>
+  </div>
 
   <!-- Mobile Navigation -->
   <nav class="mobile-nav">
@@ -929,6 +1024,7 @@
 
   <!-- Core Application Script -->
   <script src="storage.js"></script>
+  <script src="auth.js"></script>
   <script src="app.js"></script>
 
   <script>

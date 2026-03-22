@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
@@ -10,6 +10,7 @@ from backend.services.diagnosis_service import (
     get_cache_stats
 )
 from backend.ai_engine.ollama_client import check_ollama_connection, OllamaConnectionError
+from backend.auth.middleware import require_auth
 import json
 
 router = APIRouter()
@@ -36,7 +37,7 @@ class DiagnosisRequest(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 @router.post("/diagnosis")
-def diagnosis(req: DiagnosisRequest):
+def diagnosis(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
     """Production-ready diagnosis endpoint with Gated Multimodal Architecture"""
     try:
         status = check_ollama_connection()
@@ -56,7 +57,7 @@ def diagnosis(req: DiagnosisRequest):
         raise HTTPException(status_code=500, detail=f"Diagnosis generation failed: {str(e)}")
 
 @router.post("/diagnosis/async")
-async def diagnosis_async(req: DiagnosisRequest):
+async def diagnosis_async(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
     """Async diagnosis endpoint"""
     try:
         result = await generate_diagnosis_async(req.model_dump())
@@ -65,16 +66,17 @@ async def diagnosis_async(req: DiagnosisRequest):
         raise HTTPException(status_code=500, detail=f"Async diagnosis generation failed: {str(e)}")
 
 @router.post("/diagnosis/stream")
-async def diagnosis_stream(req: DiagnosisRequest):
-    """Streaming diagnosis endpoint"""
-    async def generate_stream():
-        try:
-            async for chunk in generate_diagnosis_streaming(req.model_dump()):
-                yield f"data: {chunk}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-    
-    return StreamingResponse(generate_stream(), media_type="text/event-stream")
+async def diagnosis_stream(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
+    """
+    Streaming diagnosis endpoint.
+    Note: Streaming is not fully implemented - returns standard response.
+    For production, implement SSE with streaming LLM responses.
+    """
+    try:
+        result = generate_diagnosis(req.model_dump())
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Diagnosis streaming failed: {str(e)}")
 
 @router.get("/diagnosis/cache")
 def get_diagnosis_cache():
@@ -134,7 +136,7 @@ def get_diagnosis_stats():
     }
 
 @router.delete("/diagnosis/cache")
-def clear_diagnosis_cache():
+def clear_diagnosis_cache(payload: dict = Depends(require_auth)):
     """Clear diagnosis cache"""
     clear_cache()
     return {"message": "Diagnosis cache cleared successfully"}

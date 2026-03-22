@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Annotated
 from backend.services.drug_service import analyze_drug_interactions
+from backend.auth.middleware import require_auth
 
 router = APIRouter()
 
@@ -14,7 +15,7 @@ class DrugCheckRequest(BaseModel):
         return [drug.strip()[:200] for drug in v if drug.strip()]
 
 @router.post("/check-interactions")
-def check_interactions(req: DrugCheckRequest):
+def check_interactions(req: DrugCheckRequest, payload: dict = Depends(require_auth)):
     try:
         result = analyze_drug_interactions(req.drugs)
         return {"analysis": result}
