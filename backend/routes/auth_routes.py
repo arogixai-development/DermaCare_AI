@@ -1,7 +1,8 @@
 """
 Auth Routes - DermaCare AI
-==========================
+=========================
 Authentication endpoints: login, register, refresh, logout.
+With rate limiting and brute force protection.
 """
 from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
 from sqlalchemy.orm import Session
@@ -22,6 +23,11 @@ from backend.auth.jwt_handler import (
     REFRESH_TOKEN_EXPIRE_DAYS
 )
 from backend.auth.middleware import require_auth
+from backend.auth.rate_limiter import (
+    check_login_rate_limit,
+    record_failed_login,
+    record_successful_login
+)
 
 logger = logging.getLogger("DermaCare_AI.auth")
 
@@ -83,14 +89,23 @@ class UserResponse(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(credentials: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    """Authenticate user and return tokens."""
+async def login(request: Request, credentials: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    """Authenticate user and return tokens. Rate limited for brute force protection."""
+    
+    await check_login_rate_limit(request, credentials.username)
+    
     user = db.query(User).filter(User.username == credentials.username).first()
     
     if not user or not verify_password(credentials.password, user.hashed_password):
+        attempt_info = record_failed_login(request, credentials.username)
+        if attempt_info["locked"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Account locked due to {attempt_info['attempts']} failed attempts. Try again in {attempt_info['lockout_minutes']} minutes."
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+            detail=f"Invalid username or password. {attempt_info['remaining_attempts']} attempts remaining."
         )
     
     if not user.is_active:
@@ -98,6 +113,8 @@ def login(credentials: LoginRequest, response: Response, db: Session = Depends(g
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled"
         )
+    
+    record_successful_login(request, credentials.username)
     
     user.last_login = datetime.now(timezone.utc)
     db.commit()

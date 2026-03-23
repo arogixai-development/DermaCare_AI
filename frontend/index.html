@@ -104,31 +104,31 @@
         <p>Clinical Precision</p>
       </div>
 
-      <nav class="sidebar-nav">
-        <div id="nav-dashboard" class="nav-item active" onclick="window.app.showScreen('screen-dashboard')">
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <div id="nav-dashboard" class="nav-item active" data-action="nav-dashboard">
           <span class="material-icons">dashboard</span>
           <span>Dashboard</span>
         </div>
-        <div id="nav-new" class="nav-item" onclick="window.app.startNewDiagnosis()">
+        <div id="nav-new" class="nav-item" data-action="nav-new">
           <span class="material-icons">add_circle</span>
           <span>New Diagnosis</span>
         </div>
-        <div id="nav-history" class="nav-item" onclick="window.app.showHistory()">
+        <div id="nav-history" class="nav-item" data-action="nav-history">
           <span class="material-icons">history</span>
           <span>Case History</span>
         </div>
-        <div id="nav-drug" class="nav-item" onclick="window.app.showScreen('screen-drug-checker')">
+        <div id="nav-drug" class="nav-item" data-action="nav-drug">
           <span class="material-icons">medication</span>
           <span>Drug Checker</span>
         </div>
-        <div id="nav-settings" class="nav-item" onclick="window.app.showScreen('screen-settings')">
+        <div id="nav-settings" class="nav-item" data-action="nav-settings">
           <span class="material-icons">settings</span>
           <span>Settings</span>
         </div>
       </nav>
 
       <div class="sidebar-footer">
-        <button class="new-diagnosis-btn" onclick="window.app.startNewDiagnosis()">
+        <button class="new-diagnosis-btn" id="btn-new-diagnosis">
           <span class="material-icons">add</span>
           New Diagnosis
         </button>
@@ -155,11 +155,11 @@
           </div>
         </div>
         <div class="top-bar-right">
-          <button class="btn btn-ghost btn-small" id="retry-btn" onclick="window.app.retryConnection()" style="display: none;">
+          <button class="btn btn-ghost btn-small" id="retry-btn" data-action="retry-connection" style="display: none;">
             <span class="material-icons" style="font-size: 1rem;">refresh</span>
             Retry
           </button>
-          <button class="btn btn-icon btn-ghost" onclick="window.app.checkConnection()">
+          <button class="btn btn-icon btn-ghost" id="btn-check-connection">
             <span class="material-icons">notifications</span>
           </button>
         </div>
@@ -212,7 +212,7 @@
                   <h4>New Patient Diagnosis</h4>
                   <p>Initiate a skin analysis session. Upload high-resolution clinical images for AI-assisted diagnostic scoring.</p>
                 </div>
-                <button class="btn btn-primary" onclick="window.app.startNewDiagnosis()">
+                <button class="btn btn-primary" data-action="start-diagnosis">
                   Start Clinical Scan
                   <span class="material-icons">arrow_forward</span>
                 </button>
@@ -227,7 +227,7 @@
                   <h4>Review Clinical History</h4>
                   <p>Access historical patient records, AI report archives, and cross-reference clinical longitudinal data.</p>
                 </div>
-                <button class="btn btn-secondary" onclick="window.app.showHistory()">
+                <button class="btn btn-secondary" data-action="show-history">
                   Browse Case Archive
                   <span class="material-icons">history</span>
                 </button>
@@ -340,8 +340,8 @@
               </div>
 
               <div class="footer-actions">
-                <button type="button" class="btn btn-secondary" onclick="window.app.showScreen('screen-dashboard')">Save as Draft</button>
-                <button type="button" class="btn btn-primary" onclick="window.app.goNext('screen-assessment')">
+                <button type="button" class="btn btn-secondary" data-action="save-draft">Save as Draft</button>
+                <button type="button" class="btn btn-primary" data-action="go-assessment">
                   Continue to Assessment
                   <span class="material-icons">arrow_forward</span>
                 </button>
@@ -428,8 +428,8 @@
             <!-- Image Upload -->
             <div class="form-group">
               <label class="form-label">Upload Clinical Photos</label>
-              <div class="image-upload" onclick="document.getElementById('lesion-image').click()">
-                <input type="file" id="lesion-image" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload(this)">
+              <div class="image-upload" id="image-upload-area">
+                <input type="file" id="lesion-image" accept="image/*" style="display: none;">
                 <div class="image-upload-icon">
                   <span class="material-icons">add_a_photo</span>
                 </div>
@@ -438,7 +438,7 @@
               </div>
               <div id="image-preview-container" class="hidden" style="margin-top: 1rem;">
                 <img id="image-preview" style="max-width: 100%; max-height: 200px; border-radius: 0.75rem;">
-                <button class="btn btn-secondary btn-small" onclick="window.app.removeImage()">Remove</button>
+                <button class="btn btn-secondary btn-small" id="btn-remove-image">Remove</button>
               </div>
             </div>
 
@@ -493,11 +493,11 @@
             </div>
 
             <div class="footer-actions">
-              <button type="button" class="btn btn-secondary" onclick="window.app.goBack('screen-intake')">
+              <button type="button" class="btn btn-secondary" data-action="go-intake">
                 <span class="material-icons">arrow_back</span>
                 Back to Intake
               </button>
-              <button type="button" class="btn btn-primary" id="analyze-btn" onclick="window.app.analyzeCase()">
+              <button type="button" class="btn btn-primary" id="analyze-btn" data-action="analyze-case">
                 <span class="material-icons filled">auto_awesome</span>
                 Start AI Analysis
               </button>
@@ -622,11 +622,11 @@
           </div>
 
           <div class="footer-actions">
-            <button class="btn btn-secondary" onclick="window.app.goBack('screen-assessment')">
+            <button class="btn btn-secondary" data-action="go-assessment">
               <span class="material-icons">arrow_back</span>
               Back to Assessment
             </button>
-            <button class="btn btn-primary" onclick="window.app.goNext('screen-treatment')">
+            <button class="btn btn-primary" data-action="go-treatment">
               Proceed to Treatment
               <span class="material-icons">arrow_forward</span>
             </button>
@@ -679,11 +679,11 @@
           </div>
 
           <div class="footer-actions">
-            <button class="btn btn-secondary" onclick="window.app.goBack('screen-diagnosis')">
+            <button class="btn btn-secondary" data-action="go-diagnosis">
               <span class="material-icons">arrow_back</span>
               Previous Step
             </button>
-            <button class="btn btn-primary" onclick="window.app.prepareSOAP()">
+            <button class="btn btn-primary" data-action="generate-soap">
               Generate SOAP Report
               <span class="material-icons">auto_awesome</span>
             </button>
@@ -740,15 +740,15 @@
                 Final Clinical Summary
               </h3>
               <div style="display: flex; gap: 0.5rem;">
-                <button class="btn btn-secondary btn-small" onclick="window.app.copySOAPNote()">
+                <button class="btn btn-secondary btn-small" data-action="copy-soap">
                   <span class="material-icons">content_copy</span>
                   Copy
                 </button>
-                <button class="btn btn-secondary btn-small" onclick="window.app.downloadSOAPNote()">
+                <button class="btn btn-secondary btn-small" data-action="download-soap-txt">
                   <span class="material-icons">file_download</span>
                   TXT
                 </button>
-                <button class="btn btn-secondary btn-small" onclick="window.app.downloadSOAPPDF()">
+                <button class="btn btn-secondary btn-small" data-action="download-soap-pdf">
                   <span class="material-icons">picture_as_pdf</span>
                   PDF
                 </button>
@@ -761,11 +761,11 @@
           </div>
 
           <div class="footer-actions">
-            <button class="btn btn-secondary" onclick="window.app.goBack('screen-treatment')">
+            <button class="btn btn-secondary" data-action="go-treatment">
               <span class="material-icons">arrow_back</span>
               Previous: Review Results
             </button>
-            <button class="btn btn-primary" onclick="window.app.finishCase()">
+            <button class="btn btn-primary" data-action="finish-case">
               Save & Finish Case
               <span class="material-icons">check_circle</span>
             </button>
@@ -780,7 +780,7 @@
           </div>
 
           <div style="display: flex; justify-content: flex-end; margin-bottom: 2rem;">
-            <button class="btn btn-primary" onclick="window.app.startNewDiagnosis()">
+            <button class="btn btn-primary" data-action="start-diagnosis">
               <span class="material-icons">add</span>
               Start New Diagnosis
             </button>
@@ -788,7 +788,7 @@
 
           <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
             <div style="flex: 1;">
-              <input type="text" id="history-search" class="form-input" placeholder="Search case archives..." oninput="window.app.filterHistory()">
+              <input type="text" id="history-search" class="form-input" placeholder="Search case archives...">
             </div>
           </div>
 
@@ -819,7 +819,7 @@
                 <span class="material-icons">info</span>
                 Supports 50,000+ FDA-approved formulations.
               </div>
-              <button class="btn btn-primary" id="check-drug-btn" onclick="window.app.checkDrugInteractions()">
+              <button class="btn btn-primary" id="check-drug-btn" data-action="check-drugs">
                 Analyze Combinations
                 <span class="material-icons filled">auto_awesome</span>
               </button>
@@ -831,7 +831,7 @@
           </div>
 
           <div style="margin-top: 2rem;">
-            <button class="btn btn-secondary" onclick="window.app.showScreen('screen-dashboard')">
+            <button class="btn btn-secondary" data-action="go-dashboard">
               <span class="material-icons">arrow_back</span>
               Back to Dashboard
             </button>
@@ -873,13 +873,18 @@
               </div>
 
               <div class="form-group">
-                <label class="form-label">API URL Endpoint</label>
+                <label class="form-label">Ollama API URL</label>
                 <input type="text" id="settings-api-url" class="form-input" value="http://localhost:11434" style="font-family: monospace; color: var(--primary);">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Backend API URL</label>
+                <input type="text" id="settings-backend-url" class="form-input" value="http://127.0.0.1:8000" style="font-family: monospace; color: var(--primary);">
               </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--surface-container);">
                 <span style="font-size: 0.75rem; color: var(--on-surface-variant);">Last model validation: <span id="last-validation">Never</span></span>
-                <button class="btn btn-primary" onclick="window.app.testAIConnection()">
+                <button class="btn btn-primary" data-action="test-ai">
                   Run Diagnostics
                 </button>
               </div>
@@ -936,7 +941,7 @@
                     <p style="font-size: 0.75rem; color: var(--on-surface-variant);">End session securely.</p>
                   </div>
                 </div>
-                <button class="btn btn-secondary btn-small" onclick="window.app.logout()">Sign Out</button>
+                <button class="btn btn-secondary btn-small" data-action="logout">Sign Out</button>
               </div>
               <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; gap: 1rem; align-items: center;">
@@ -948,7 +953,7 @@
                     <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Removes temporary image data.</p>
                   </div>
                 </div>
-                <button class="btn btn-secondary btn-small" onclick="window.app.clearCache()">Clear</button>
+                <button class="btn btn-secondary btn-small" data-action="clear-cache">Clear</button>
               </div>
               <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(186,26,26,0.1);">
                 <div style="display: flex; gap: 1rem; align-items: center;">
@@ -960,7 +965,7 @@
                     <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Delete all cases from this machine.</p>
                   </div>
                 </div>
-                <button class="btn btn-secondary btn-small" style="color: var(--error);" onclick="window.app.confirmDeleteAllCases()">Delete All</button>
+                <button class="btn btn-secondary btn-small" style="color: var(--error);" data-action="delete-all-cases">Delete All</button>
               </div>
             </div>
           </div>
@@ -986,8 +991,8 @@
           </div>
 
           <div class="footer-actions">
-            <button class="btn btn-secondary" onclick="window.app.showScreen('screen-dashboard')">Cancel</button>
-            <button class="btn btn-primary" onclick="window.app.saveSettings()">
+            <button class="btn btn-secondary" data-action="go-dashboard">Cancel</button>
+            <button class="btn btn-primary" data-action="save-settings">
               <span class="material-icons">save</span>
               Save Changes
             </button>
@@ -1001,19 +1006,19 @@
 
   <!-- Mobile Navigation -->
   <nav class="mobile-nav">
-    <a class="mobile-nav-item active" onclick="window.app.showScreen('screen-dashboard')">
+    <a class="mobile-nav-item active" data-action="nav-dashboard">
       <span class="material-icons">dashboard</span>
       Home
     </a>
-    <a class="mobile-nav-item" onclick="window.app.startNewDiagnosis()">
+    <a class="mobile-nav-item" data-action="nav-new">
       <span class="material-icons">add_circle</span>
       New
     </a>
-    <a class="mobile-nav-item" onclick="window.app.showHistory()">
+    <a class="mobile-nav-item" data-action="nav-history">
       <span class="material-icons">history</span>
       History
     </a>
-    <a class="mobile-nav-item" onclick="window.app.showScreen('screen-settings')">
+    <a class="mobile-nav-item" data-action="nav-settings">
       <span class="material-icons">settings</span>
       Settings
     </a>

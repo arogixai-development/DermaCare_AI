@@ -29,6 +29,66 @@ class AppController {
   initButtonHandlers() {
     document.getElementById('create-account-btn')?.addEventListener('click', () => this.showSignupScreen());
     document.getElementById('back-to-login-btn')?.addEventListener('click', () => this.showLoginScreen());
+    
+    this.initDataActionHandlers();
+  }
+  
+  initDataActionHandlers() {
+    document.addEventListener('click', (e) => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      
+      switch(action) {
+        case 'nav-dashboard': this.showScreen('screen-dashboard'); break;
+        case 'nav-new': this.startNewDiagnosis(); break;
+        case 'nav-history': this.showHistory(); break;
+        case 'nav-drug': this.showScreen('screen-drug-checker'); break;
+        case 'nav-settings': this.showScreen('screen-settings'); break;
+        case 'start-diagnosis': this.startNewDiagnosis(); break;
+        case 'show-history': this.showHistory(); break;
+        case 'go-dashboard': this.showScreen('screen-dashboard'); break;
+        case 'go-intake': this.showScreen('screen-intake'); break;
+        case 'go-assessment': this.goNext('screen-assessment'); break;
+        case 'go-treatment': this.goNext('screen-treatment'); break;
+        case 'go-diagnosis': this.showScreen('screen-diagnosis'); break;
+        case 'analyze-case': this.analyzeCase(); break;
+        case 'generate-soap': this.prepareSOAP(); break;
+        case 'copy-soap': this.copySOAPNote(); break;
+        case 'download-soap-txt': this.downloadSOAPNote(); break;
+        case 'download-soap-pdf': this.downloadSOAPPDF(); break;
+        case 'finish-case': this.finishCase(); break;
+        case 'check-drugs': this.checkDrugInteractions(); break;
+        case 'test-ai': this.testAIConnection(); break;
+        case 'save-settings': this.saveSettings(); break;
+        case 'logout': this.logout(); break;
+        case 'clear-cache': this.clearCache(); break;
+        case 'delete-all-cases': this.confirmDeleteAllCases(); break;
+        case 'save-draft': this.showScreen('screen-dashboard'); break;
+        case 'retry-connection': this.retryConnection(); break;
+        default: console.log('Unknown action:', action);
+      }
+    });
+    
+    document.getElementById('btn-new-diagnosis')?.addEventListener('click', () => this.startNewDiagnosis());
+    document.getElementById('btn-check-connection')?.addEventListener('click', () => this.checkConnection());
+    document.getElementById('btn-remove-image')?.addEventListener('click', () => this.removeImage());
+    
+    document.getElementById('image-upload-area')?.addEventListener('click', () => {
+      document.getElementById('lesion-image')?.click();
+    });
+    
+    document.getElementById('lesion-image')?.addEventListener('change', (e) => {
+      this.handleImageUpload(e.target);
+    });
+    
+    document.getElementById('history-search')?.addEventListener('input', () => this.filterHistory());
+    
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
   }
   
   initAuth() {
@@ -158,7 +218,8 @@ class AppController {
       errorEl.style.display = 'none';
       
       try {
-        const response = await fetch('http://127.0.0.1:8000/auth/register', {
+        const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
+        const response = await fetch(`${apiBase}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: email, password: password, email: email })
@@ -167,7 +228,7 @@ class AppController {
         if (response.ok) {
           this.showToast('Account created! Please sign in.', 'success');
           this.showLoginScreen();
-          document.getElementById('login-username').value = email;
+          document.getElementById('login-email').value = email;
         } else {
           const data = await response.json();
           errorEl.textContent = data.detail || 'Registration failed';
@@ -202,6 +263,24 @@ class AppController {
     this.showLoginScreen();
   }
   
+  async checkConnection() {
+    const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
+    try {
+      const ping = await fetch(`${apiBase}/health`, { signal: AbortSignal.timeout(3000) });
+      if (ping.ok) {
+        this.showToast('Backend connection OK', 'success');
+      } else {
+        this.showToast('Backend error: ' + ping.status, 'error');
+      }
+    } catch (err) {
+      this.showToast('Backend unreachable: ' + err.message, 'error');
+    }
+  }
+  
+  async retryConnection() {
+    await this.checkConnection();
+  }
+  
   initNetworkMonitoring() {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
@@ -210,7 +289,8 @@ class AppController {
       if (!dot || !text) return;
       
       try {
-        const ping = await fetch('http://127.0.0.1:8000/health', { signal: AbortSignal.timeout(3000) });
+        const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
+        const ping = await fetch(`${apiBase}/health`, { signal: AbortSignal.timeout(3000) });
         if (ping.ok) {
           const health = await ping.json();
           if (health.ollama_connected) {
@@ -368,7 +448,8 @@ class AppController {
     loading.classList.remove('hidden');
 
     try {
-      const res = await window.auth.authenticatedFetch('http://127.0.0.1:8000/diagnosis', {
+      const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
+      const res = await window.auth.authenticatedFetch(`${apiBase}/diagnosis`, {
         method: "POST",
         body: this.currentCasePayload
       });
@@ -507,7 +588,8 @@ class AppController {
     // If no SOAP note, try to generate it
     if (!soapNote && this.currentCasePayload) {
       try {
-        const res = await window.auth.authenticatedFetch('http://127.0.0.1:8000/soap', {
+        const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
+        const res = await window.auth.authenticatedFetch(`${apiBase}/soap`, {
           method: 'POST',
           body: {
             case_id: this.currentCasePayload?.case_id || `case_${Date.now()}`,
@@ -710,15 +792,45 @@ class AppController {
   loadSettings() {
     const savedApiUrl = localStorage.getItem('dermacare-api-url');
     const savedModel = localStorage.getItem('dermacare-model');
+    const savedBackendUrl = localStorage.getItem('dermacare-backend-url');
     if (savedApiUrl) document.getElementById('settings-api-url').value = savedApiUrl;
     if (savedModel) document.getElementById('settings-model-name').value = savedModel;
+    if (savedBackendUrl) document.getElementById('settings-backend-url').value = savedBackendUrl;
   }
   
   saveSettings() {
-    localStorage.setItem('dermacare-api-url', document.getElementById('settings-api-url')?.value || '');
-    localStorage.setItem('dermacare-model', document.getElementById('settings-model-name')?.value || '');
-    this.showToast('Settings saved.', 'success');
+    const apiUrl = document.getElementById('settings-api-url')?.value || '';
+    const model = document.getElementById('settings-model-name')?.value || '';
+    const backendUrl = document.getElementById('settings-backend-url')?.value || '';
+    
+    localStorage.setItem('dermacare-api-url', apiUrl);
+    localStorage.setItem('dermacare-model', model);
+    localStorage.setItem('dermacare-backend-url', backendUrl);
+    
+    if (window.auth) {
+      window.auth.setApiBase(backendUrl || 'http://127.0.0.1:8000');
+    }
+    
+    this.showToast('Settings saved. API URL updated.', 'success');
     this.showScreen('screen-dashboard');
+  }
+  
+  async testConnection() {
+    const backendUrl = document.getElementById('settings-backend-url')?.value || 'http://127.0.0.1:8000';
+    const apiUrl = document.getElementById('settings-api-url')?.value || 'http://localhost:11434';
+    
+    this.showToast('Testing connections...', 'info');
+    
+    try {
+      const backendRes = await fetch(`${backendUrl}/health`, { signal: AbortSignal.timeout(5000) });
+      if (backendRes.ok) {
+        this.showToast('Backend connection OK', 'success');
+      } else {
+        this.showToast('Backend error: ' + backendRes.status, 'error');
+      }
+    } catch (e) {
+      this.showToast('Backend unreachable: ' + e.message, 'error');
+    }
   }
 }
 

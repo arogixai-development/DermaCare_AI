@@ -11,13 +11,31 @@ class AuthManager {
     this.refreshTimer = null;
     this.isAuthenticated = false;
     this.user = null;
-    this.API_BASE = 'http://127.0.0.1:8000';
+    this.API_BASE = this._getStoredApiBase() || 'http://127.0.0.1:8000';
     this.initFromStorage();
+  }
+
+  _getStoredApiBase() {
+    return localStorage.getItem('dermacare_backend_url') || null;
+  }
+
+  setApiBase(url) {
+    this.API_BASE = url;
+    localStorage.setItem('dermacare_backend_url', url);
+  }
+
+  getApiBase() {
+    return this.API_BASE;
   }
 
   initFromStorage() {
     const storedExpiry = localStorage.getItem('dermacare_token_expiry');
     const storedToken = localStorage.getItem('dermacare_access_token');
+    const storedApiBase = localStorage.getItem('dermacare_backend_url');
+    
+    if (storedApiBase) {
+      this.API_BASE = storedApiBase;
+    }
     
     if (storedExpiry && storedToken) {
       const expiry = parseInt(storedExpiry);
