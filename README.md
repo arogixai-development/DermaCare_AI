@@ -75,8 +75,7 @@ The system is designed with a decoupled architecture to ensure robustness and pr
 
 ### 1. Start the Backend
 ```bash
-cd backend
-python -m uvicorn main:app --reload
+python -m uvicorn backend.app:app --reload
 ```
 *The API will be accessible at `http://localhost:8000`.*
 

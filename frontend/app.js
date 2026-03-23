@@ -90,7 +90,7 @@ class AppController {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const username = document.getElementById('login-username').value.trim();
+      const username = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
       const errorEl = document.getElementById('login-error');
       const btn = document.getElementById('login-btn');
