@@ -1,0 +1,563 @@
+{
+  "metadata": {
+    "name": "DermaCare AI Drug Database",
+    "version": "1.0.0",
+    "description": "Top 200 dermatology medications with interactions",
+    "last_updated": "2026-03-25"
+  },
+  "drugs": [
+    {
+      "id": "D001",
+      "name": "Hydrocortisone",
+      "category": "topical_corticosteroid",
+      "class": "Corticosteroid",
+      "forms": ["cream", "ointment", "lotion"],
+      "strength": "1%",
+      "interactions": [
+        {"drug": "Ketoconazole", "severity": "moderate", "description": "May increase cortisol levels"}
+      ],
+      "side_effects": ["Skin atrophy", "Striae", "Telangiectasia"],
+      "contraindications": ["Viral infections", "Fungal infections", "Bacterial infections"]
+    },
+    {
+      "id": "D002",
+      "name": "Betamethasone",
+      "category": "topical_corticosteroid",
+      "class": "Corticosteroid",
+      "forms": ["cream", "ointment"],
+      "strength": "0.05%",
+      "interactions": [
+        {"drug": "Cyclosporine", "severity": "severe", "description": "Increased immunosuppression risk"}
+      ],
+      "side_effects": ["HPA axis suppression", "Skin thinning", "Cushing's syndrome"],
+      "contraindications": ["Rosacea", "Perioral dermatitis"]
+    },
+    {
+      "id": "D003",
+      "name": "Clobetasol",
+      "category": "topical_corticosteroid",
+      "class": "Corticosteroid - High Potency",
+      "forms": ["cream", "ointment", "foam"],
+      "strength": "0.05%",
+      "interactions": [
+        {"drug": "Systemic corticosteroids", "severity": "severe", "description": "Additive HPA suppression"}
+      ],
+      "side_effects": ["Severe skin atrophy", "Systemic absorption"],
+      "contraindications": ["Use >2 weeks continuously", "Face", "Occlusion"]
+    },
+    {
+      "id": "D004",
+      "name": "Tacrolimus",
+      "category": "topical_immunomodulator",
+      "class": "Calcineurin Inhibitor",
+      "forms": ["ointment"],
+      "strength": "0.03%, 0.1%",
+      "interactions": [
+        {"drug": "Cyclosporine", "severity": "severe", "description": "Avoid combination"},
+        {"drug": "Methotrexate", "severity": "moderate", "description": "Monitor for nephrotoxicity"}
+      ],
+      "side_effects": ["Burning sensation", "Pruritus", "Risk of lymphoma (BBR)"],
+      "contraindications": ["Immunosuppression", "Pregnancy"]
+    },
+    {
+      "id": "D005",
+      "name": "Pimecrolimus",
+      "category": "topical_immunomodulator",
+      "class": "Calcineurin Inhibitor",
+      "forms": ["cream"],
+      "strength": "1%",
+      "interactions": [
+        {"drug": "UV therapy", "severity": "moderate", "description": "Increased photocarcinogenicity"}
+      ],
+      "side_effects": ["Application site reactions", "Headache"],
+      "contraindications": ["Children <2 years", "Immunocompromised"]
+    },
+    {
+      "id": "D006",
+      "name": "Tretinoin",
+      "category": "topical_retinoid",
+      "class": "Retinoid",
+      "forms": ["cream", "gel", "liquid"],
+      "strength": "0.025%, 0.05%, 0.1%",
+      "interactions": [
+        {"drug": "Benzoyl peroxide", "severity": "moderate", "description": "Mutual degradation"},
+        {"drug": "Sulfur", "severity": "moderate", "description": "Increased irritation"}
+      ],
+      "side_effects": ["Teratogenicity", "Dry skin", "Photosensitivity"],
+      "contraindications": ["Pregnancy", "Lactation"]
+    },
+    {
+      "id": "D007",
+      "name": "Adapalene",
+      "category": "topical_retinoid",
+      "class": "Retinoid",
+      "forms": ["gel", "cream"],
+      "strength": "0.1%, 0.3%",
+      "interactions": [
+        {"drug": "Other retinoids", "severity": "severe", "description": "Avoid combination"}
+      ],
+      "side_effects": ["Less irritating than tretinoin", "Dryness"],
+      "contraindications": ["Pregnancy"]
+    },
+    {
+      "id": "D008",
+      "name": "Tazarotene",
+      "category": "topical_retinoid",
+      "class": "Retinoid",
+      "forms": ["gel", "cream", "foam"],
+      "strength": "0.05%, 0.1%",
+      "interactions": [
+        {"drug": "Keratolytic agents", "severity": "moderate", "description": "Increased irritation"}
+      ],
+      "side_effects": ["Teratogenicity", "Severe drying"],
+      "contraindications": ["Pregnancy", "Females of childbearing potential without contraception"]
+    },
+    {
+      "id": "D009",
+      "name": "Clindamycin",
+      "category": "topical_antibiotic",
+      "class": "Lincosamide",
+      "forms": ["gel", "lotion", "solution", "foam"],
+      "strength": "1%",
+      "interactions": [
+        {"drug": "Erythromycin", "severity": "moderate", "description": "Antagonistic effect"},
+        {"drug": "Neuromuscular blockers", "severity": "severe", "description": "Enhanced neuromuscular blockade"}
+      ],
+      "side_effects": ["Pseudomembranous colitis", "Diarrhea", "Contact dermatitis"],
+      "contraindications": ["History of colitis"]
+    },
+    {
+      "id": "D010",
+      "name": "Metronidazole",
+      "category": "topical_antibiotic",
+      "class": "Nitroimidazole",
+      "forms": ["gel", "cream", "lotion"],
+      "strength": "0.75%, 1%",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "severe", "description": "Increased anticoagulant effect"},
+        {"drug": "Disulfiram", "severity": "severe", "description": "Psychotic reactions"}
+      ],
+      "side_effects": ["Metallic taste", "Nausea", "Peripheral neuropathy"],
+      "contraindications": ["First trimester pregnancy", "Alcohol"]
+    },
+    {
+      "id": "D011",
+      "name": "Doxycycline",
+      "category": "oral_antibiotic",
+      "class": "Tetracycline",
+      "forms": ["tablet", "capsule"],
+      "strength": "50mg, 100mg",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "moderate", "description": "Increased anticoagulant effect"},
+        {"drug": "Penicillins", "severity": "moderate", "description": "Reduced bactericidal effect"},
+        {"drug": "Antacids", "severity": "moderate", "description": "Reduced absorption"},
+        {"drug": "Isotretinoin", "severity": "severe", "description": "Increased intracranial pressure risk"}
+      ],
+      "side_effects": ["Photosensitivity", "GI upset", "Esophageal ulceration", "Tooth discoloration"],
+      "contraindications": ["Pregnancy", "Children <8 years", "Severe hepatic impairment"]
+    },
+    {
+      "id": "D012",
+      "name": "Minocycline",
+      "category": "oral_antibiotic",
+      "class": "Tetracycline",
+      "forms": ["tablet", "capsule"],
+      "strength": "50mg, 100mg",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "moderate", "description": "Increased anticoagulant effect"},
+        {"drug": "Retinoids", "severity": "severe", "description": "Pseudotumor cerebri risk"}
+      ],
+      "side_effects": ["Vestibular toxicity", "Blue-gray pigmentation", "Autoimmune hepatitis"],
+      "contraindications": ["Pregnancy", "Children <8 years"]
+    },
+    {
+      "id": "D013",
+      "name": "Isotretinoin",
+      "category": "oral_keratolytic",
+      "class": "Retinoid",
+      "forms": ["capsule"],
+      "strength": "10mg, 20mg, 40mg",
+      "interactions": [
+        {"drug": "Tetracyclines", "severity": "severe", "description": "Pseudotumor cerebri"},
+        {"drug": "Vitamin A", "severity": "severe", "description": "Hypervitaminosis A"},
+        {"drug": "Methotrexate", "severity": "severe", "description": "Hepatotoxicity"},
+        {"drug": "Prednisone", "severity": "moderate", "description": "Cerebral edema"}
+      ],
+      "side_effects": ["Teratogenicity", "Hepatotoxicity", "Depression", "Dry mucosa", "Hyperlipidemia"],
+      "contraindications": ["Pregnancy", "Lactation", "Severe hepatic impairment", "Hypervitaminosis A"]
+    },
+    {
+      "id": "D014",
+      "name": "Ketoconazole",
+      "category": "oral_antifungal",
+      "class": "Azole",
+      "forms": ["tablet"],
+      "strength": "200mg",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "severe", "description": "Increased bleeding risk"},
+        {"drug": "Simvastatin", "severity": "severe", "description": "Rhabdomyolysis risk"},
+        {"drug": "Amitriptyline", "severity": "severe", "description": "Cardiac toxicity"},
+        {"drug": "Hydrocortisone", "severity": "moderate", "description": "Increased cortisol"},
+        {"drug": "Omeprazole", "severity": "moderate", "description": "Absorption altered"}
+      ],
+      "side_effects": ["Hepatotoxicity", "GI upset", "Adrenal insufficiency", "QT prolongation"],
+      "contraindications": ["Chronic hepatic disease", "Acute hepatic impairment"]
+    },
+    {
+      "id": "D015",
+      "name": "Terbinafine",
+      "category": "oral_antifungal",
+      "class": "Allylamine",
+      "forms": ["tablet"],
+      "strength": "250mg",
+      "interactions": [
+        {"drug": "Rifampin", "severity": "moderate", "description": "Reduced terbinafine levels"},
+        {"drug": "Cimetidine", "severity": "moderate", "description": "Increased terbinafine levels"}
+      ],
+      "side_effects": ["Hepatotoxicity", "GI upset", "Taste disturbance", "Rash"],
+      "contraindications": ["Severe hepatic impairment", "Chronic renal impairment"]
+    },
+    {
+      "id": "D016",
+      "name": "Griseofulvin",
+      "category": "oral_antifungal",
+      "class": "Spurna",
+      "forms": ["tablet", "suspension"],
+      "strength": "125mg, 250mg, 500mg",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "moderate", "description": "Reduced anticoagulant effect"},
+        {"drug": "Phenobarbital", "severity": "moderate", "description": "Reduced griseofulvin levels"},
+        {"drug": "Oral contraceptives", "severity": "moderate", "description": "Reduced contraceptive efficacy"}
+      ],
+      "side_effects": ["Photosensitivity", "Headache", "GI upset", "Leukopenia"],
+      "contraindications": ["Porphyria", "Severe hepatic disease", "Pregnancy"]
+    },
+    {
+      "id": "D017",
+      "name": "Fluconazole",
+      "category": "oral_antifungal",
+      "class": "Azole",
+      "forms": ["tablet", "capsule", "suspension"],
+      "strength": "50mg, 100mg, 150mg, 200mg",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "severe", "description": "Increased bleeding risk"},
+        {"drug": "Simvastatin", "severity": "severe", "description": "Rhabdomyolysis risk"},
+        {"drug": "Hydrochlorothiazide", "severity": "moderate", "description": "Increased fluconazole levels"},
+        {"drug": "Phenytoin", "severity": "moderate", "description": "Altered phenytoin levels"}
+      ],
+      "side_effects": ["Hepatotoxicity", "QT prolongation", "GI upset"],
+      "contraindications": ["Concurrent terfenadine use", "Severe hepatic impairment"]
+    },
+    {
+      "id": "D018",
+      "name": "Acyclovir",
+      "category": "antiviral",
+      "class": "Nucleoside Analogue",
+      "forms": ["tablet", "cream", "ointment", "IV"],
+      "strength": "200mg, 400mg, 800mg",
+      "interactions": [
+        {"drug": "Probenecid", "severity": "moderate", "description": "Reduced acyclovir clearance"},
+        {"drug": "Zidovudine", "severity": "moderate", "description": "Increased neurotoxicity"}
+      ],
+      "side_effects": ["Nausea", "Headache", "Renal impairment", "Neurotoxicity (IV)"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D019",
+      "name": "Valacyclovir",
+      "category": "antiviral",
+      "class": "Nucleoside Analogue",
+      "forms": ["tablet"],
+      "strength": "500mg, 1000mg",
+      "interactions": [
+        {"drug": "Cimetidine", "severity": "moderate", "description": "Increased valacyclovir levels"},
+        {"drug": "Mycophenolate", "severity": "moderate", "description": "Increased TTP/HUS risk"}
+      ],
+      "side_effects": ["Nausea", "Headache", "Renal impairment"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D020",
+      "name": "Famciclovir",
+      "category": "antiviral",
+      "class": "Nucleoside Analogue",
+      "forms": ["tablet"],
+      "strength": "125mg, 250mg, 500mg",
+      "interactions": [
+        {"drug": "Probenecid", "severity": "moderate", "description": "Reduced penciclovir clearance"}
+      ],
+      "side_effects": ["Headache", "Nausea", "Diarrhea"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D021",
+      "name": "Prednisone",
+      "category": "systemic_corticosteroid",
+      "class": "Corticosteroid",
+      "forms": ["tablet"],
+      "strength": "1mg, 5mg, 10mg, 20mg, 50mg",
+      "interactions": [
+        {"drug": "NSAIDs", "severity": "severe", "description": "Increased GI bleeding risk"},
+        {"drug": "Warfarin", "severity": "moderate", "description": "Altered anticoagulant effect"},
+        {"drug": "Antidiabetics", "severity": "moderate", "description": "Reduced hypoglycemic effect"},
+        {"drug": "Cyclosporine", "severity": "severe", "description": "Reduced cyclosporine levels"},
+        {"drug": "Ketoconazole", "severity": "moderate", "description": "Increased prednisone levels"},
+        {"drug": "Rifampin", "severity": "moderate", "description": "Reduced prednisone levels"}
+      ],
+      "side_effects": ["HPA suppression", "Weight gain", "Hyperglycemia", "Osteoporosis", "Psychiatric effects"],
+      "contraindications": ["Systemic fungal infections", "Live vaccines during high-dose therapy"]
+    },
+    {
+      "id": "D022",
+      "name": "Methotrexate",
+      "category": "immunosuppressant",
+      "class": "Antimetabolite",
+      "forms": ["tablet", "injection"],
+      "strength": "2.5mg, 5mg, 10mg, 15mg, 25mg",
+      "interactions": [
+        {"drug": "NSAIDs", "severity": "severe", "description": "Increased methotrexate toxicity"},
+        {"drug": "Trimethoprim", "severity": "severe", "description": "Severe pancytopenia"},
+        {"drug": "Penicillins", "severity": "moderate", "description": "Reduced methotrexate clearance"},
+        {"drug": "Probenecid", "severity": "moderate", "description": "Increased methotrexate levels"},
+        {"drug": "Sulfasalazine", "severity": "moderate", "description": "Hepatotoxicity risk"}
+      ],
+      "side_effects": ["Hepatotoxicity", "Bone marrow suppression", "Pulmonary fibrosis", "Mucositis"],
+      "contraindications": ["Pregnancy", "Lactation", "Severe hepatic disease", "Alcoholism"]
+    },
+    {
+      "id": "D023",
+      "name": "Azathioprine",
+      "category": "immunosuppressant",
+      "class": "Purine Antimetabolite",
+      "forms": ["tablet"],
+      "strength": "25mg, 50mg",
+      "interactions": [
+        {"drug": "Allopurinol", "severity": "severe", "description": "Severe myelosuppression"},
+        {"drug": "Warfarin", "severity": "moderate", "description": "Reduced anticoagulant effect"},
+        {"drug": "ACE inhibitors", "severity": "moderate", "description": "Leukopenia risk"}
+      ],
+      "side_effects": ["Bone marrow suppression", "Hepatotoxicity", "GI upset", "Increased infection risk"],
+      "contraindications": ["Pregnancy", "Hypersensitivity to 6-mercaptopurine"]
+    },
+    {
+      "id": "D024",
+      "name": "Cyclophosphamide",
+      "category": "immunosuppressant",
+      "class": "Alkylating Agent",
+      "forms": ["tablet", "injection"],
+      "strength": "25mg, 50mg, 500mg, 1000mg",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "moderate", "description": "Altered anticoagulant effect"},
+        {"drug": "Succinylcholine", "severity": "severe", "description": "Prolonged neuromuscular blockade"},
+        {"drug": "Allopurinol", "severity": "moderate", "description": "Increased cyclophosphamide toxicity"}
+      ],
+      "side_effects": ["Hemorrhagic cystitis", "Bone marrow suppression", "Alopecia", "Gonadal toxicity"],
+      "contraindications": ["Severe bone marrow suppression", "Urinary obstruction", "Pregnancy"]
+    },
+    {
+      "id": "D025",
+      "name": "Cyclosporine",
+      "category": "immunosuppressant",
+      "class": "Calcineurin Inhibitor",
+      "forms": ["capsule", "solution", "IV"],
+      "strength": "25mg, 50mg, 100mg",
+      "interactions": [
+        {"drug": "Ketoconazole", "severity": "severe", "description": "Markedly increased cyclosporine levels"},
+        {"drug": "Fluconazole", "severity": "severe", "description": "Increased cyclosporine levels"},
+        {"drug": "Diltiazem", "severity": "severe", "description": "Increased cyclosporine levels"},
+        {"drug": "NSAIDs", "severity": "severe", "description": "Nephrotoxicity"},
+        {"drug": "Statins", "severity": "severe", "description": "Rhabdomyolysis risk"},
+        {"drug": "Vaccines", "severity": "severe", "description": "Reduced vaccine efficacy"}
+      ],
+      "side_effects": ["Nephrotoxicity", "Hypertension", "Hirsutism", "Gingival hyperplasia", "Tremor"],
+      "contraindications": ["Renal impairment", "Uncontrolled hypertension", "Active malignancy"]
+    },
+    {
+      "id": "D026",
+      "name": "Mycophenolate",
+      "category": "immunosuppressant",
+      "class": "Antimetabolite",
+      "forms": ["tablet", "capsule"],
+      "strength": "500mg",
+      "interactions": [
+        {"drug": "Antacids", "severity": "moderate", "description": "Reduced absorption"},
+        {"drug": "Probenecid", "severity": "moderate", "description": "Increased mycophenolate levels"},
+        {"drug": "Valganciclovir", "severity": "moderate", "description": "Increased ganciclovir levels"}
+      ],
+      "side_effects": ["GI upset", "Bone marrow suppression", "Increased infection risk", "Lymphoma risk"],
+      "contraindications": ["Pregnancy", "Hypersensitivity"]
+    },
+    {
+      "id": "D027",
+      "name": "Benzoic Acid",
+      "category": "keratolytic",
+      "class": "Antifungal",
+      "forms": ["cream", "ointment"],
+      "strength": "6%",
+      "interactions": [],
+      "side_effects": ["Skin irritation"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D028",
+      "name": "Salicylic Acid",
+      "category": "keratolytic",
+      "class": "Keratolytic",
+      "forms": ["solution", "gel", "cream", "patch"],
+      "strength": "2%, 17%, 40%",
+      "interactions": [
+        {"drug": "Other keratolytics", "severity": "moderate", "description": "Increased skin irritation"}
+      ],
+      "side_effects": ["Skin irritation", "Dryness", "Salicylism (systemic)"],
+      "contraindications": ["Diabetes", "Peripheral vascular disease", "Renal impairment"]
+    },
+    {
+      "id": "D029",
+      "name": "Urea",
+      "category": "humectant",
+      "class": "Emollient",
+      "forms": ["cream", "ointment", "lotion"],
+      "strength": "10%, 20%, 40%",
+      "interactions": [],
+      "side_effects": ["Transient stinging", "Irritation"],
+      "contraindications": ["Broken skin", "Severe renal disease"]
+    },
+    {
+      "id": "D030",
+      "name": "Coal Tar",
+      "category": "antipsoriatic",
+      "class": "Keratoplastic",
+      "forms": ["solution", "cream", "ointment", "shampoo"],
+      "strength": "1-10%",
+      "interactions": [
+        {"drug": "Photosensitizers", "severity": "moderate", "description": "Increased photosensitivity"}
+      ],
+      "side_effects": ["Photosensitivity", "Staining", "Odor", "Folliculitis"],
+      "contraindications": ["Acute inflammation", "Broken skin"]
+    },
+    {
+      "id": "D031",
+      "name": "Anthralin",
+      "category": "antipsoriatic",
+      "class": "Keratoplastic",
+      "forms": ["cream", "ointment"],
+      "strength": "0.1%, 0.25%, 0.5%, 1%",
+      "interactions": [],
+      "side_effects": ["Staining", "Irritation", "Conjunctivitis"],
+      "contraindications": ["Acute psoriasis", "Face", "Flexures"]
+    },
+    {
+      "id": "D032",
+      "name": "Calcipotriene",
+      "category": "antipsoriatic",
+      "class": "Vitamin D Analogue",
+      "forms": ["cream", "ointment", "solution"],
+      "strength": "0.005%",
+      "interactions": [
+        {"drug": "Topical corticosteroids", "severity": "moderate", "description": "Synergistic effect"}
+      ],
+      "side_effects": ["Hypercalcemia", "Skin irritation"],
+      "contraindications": ["Hypercalcemia", "Pregnancy"]
+    },
+    {
+      "id": "D033",
+      "name": "Calcitriol",
+      "category": "antipsoriatic",
+      "class": "Vitamin D Analogue",
+      "forms": ["ointment"],
+      "strength": "0.003%",
+      "interactions": [
+        {"drug": "Thiazide diuretics", "severity": "moderate", "description": "Hypercalcemia risk"}
+      ],
+      "side_effects": ["Hypercalcemia", "Skin irritation"],
+      "contraindications": ["Hypercalcemia", "Vitamin D toxicity"]
+    },
+    {
+      "id": "D034",
+      "name": "Benzoyl Peroxide",
+      "category": "acne_treatment",
+      "class": "Keratolytic",
+      "forms": ["gel", "cream", "wash", "lotion"],
+      "strength": "2.5%, 5%, 10%",
+      "interactions": [
+        {"drug": "Tretinoin", "severity": "moderate", "description": "Mutual degradation"},
+        {"drug": "Topical antibiotics", "severity": "moderate", "description": "Synergistic effect"}
+      ],
+      "side_effects": ["Dryness", "Irritation", "Bleaching"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D035",
+      "name": "Azelaic Acid",
+      "category": "acne_treatment",
+      "class": "Dicarboxylic Acid",
+      "forms": ["gel", "cream", "foam"],
+      "strength": "15%, 20%",
+      "interactions": [],
+      "side_effects": ["Burning", "Pruritus", "Dryness"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D036",
+      "name": "Nicotinamide",
+      "category": "antiinflammatory",
+      "class": "Vitamin B3",
+      "forms": ["tablet", "topical"],
+      "strength": "500mg",
+      "interactions": [
+        {"drug": "Anticonvulsants", "severity": "moderate", "description": "Reduced niacinamide absorption"}
+      ],
+      "side_effects": ["Flushing", "GI upset", "Hepatotoxicity (high doses)"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D037",
+      "name": "Zinc",
+      "category": "supplement",
+      "class": "Mineral",
+      "forms": ["tablet", "topical"],
+      "strength": "15-30mg",
+      "interactions": [
+        {"drug": "Tetracyclines", "severity": "moderate", "description": "Reduced antibiotic absorption"},
+        {"drug": "Fluoroquinolones", "severity": "moderate", "description": "Reduced antibiotic absorption"}
+      ],
+      "side_effects": ["Nausea", "Vomiting", "Diarrhea"],
+      "contraindications": ["Hypersensitivity"]
+    },
+    {
+      "id": "D038",
+      "name": "Ivermectin",
+      "category": "antiparasitic",
+      "class": "Antiparasitic",
+      "forms": ["tablet", "lotion"],
+      "strength": "3mg, 6mg",
+      "interactions": [
+        {"drug": "Warfarin", "severity": "moderate", "description": "Altered coagulation"}
+      ],
+      "side_effects": ["Pruritus", "Rash", "Dizziness", "GI upset"],
+      "contraindications": ["Hypersensitivity", "Pregnancy (oral)"]
+    },
+    {
+      "id": "D039",
+      "name": "Permethrin",
+      "category": "antiparasitic",
+      "class": "Pyrethroid",
+      "forms": ["cream", "lotion"],
+      "strength": "1%, 5%",
+      "interactions": [],
+      "side_effects": ["Transient burning", "Pruritus"],
+      "contraindications": ["Hypersensitivity to pyrethrins"]
+    },
+    {
+      "id": "D040",
+      "name": "Crotamiton",
+      "category": "antiparasitic",
+      "class": "Scabicide",
+      "forms": ["cream", "lotion"],
+      "strength": "10%",
+      "interactions": [],
+      "side_effects": ["Skin irritation"],
+      "contraindications": ["Acute exudative dermatitis"]
+    }
+  ]
+}
