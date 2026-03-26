@@ -289,9 +289,23 @@ class AppController {
     const updateStatus = async () => {
       if (!dot || !text) return;
       
+      if (!navigator.onLine) {
+        dot.style.background = '#ef4444';
+        text.textContent = 'Offline';
+        return;
+      }
+      
       try {
         const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
-        const ping = await fetch(`${apiBase}/health`, { signal: AbortSignal.timeout(3000) });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const ping = await fetch(`${apiBase}/health`, { 
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(timeoutId);
+        
         if (ping.ok) {
           const health = await ping.json();
           if (health.ollama_connected) {
@@ -301,12 +315,18 @@ class AppController {
             dot.style.background = '#f59e0b';
             text.textContent = 'Ollama Offline';
           }
+        } else {
+          dot.style.background = '#ef4444';
+          text.textContent = 'Offline';
         }
       } catch (err) {
         dot.style.background = '#ef4444';
         text.textContent = 'Offline';
       }
     };
+    
+    window.addEventListener('offline', updateStatus);
+    window.addEventListener('online', updateStatus);
     
     setInterval(updateStatus, 30000);
     setTimeout(updateStatus, 1000);
