@@ -30,6 +30,12 @@ class AppController {
     document.getElementById('create-account-btn')?.addEventListener('click', () => this.showSignupScreen());
     document.getElementById('back-to-login-btn')?.addEventListener('click', () => this.showLoginScreen());
     
+    document.getElementById('monte-carlo-toggle')?.addEventListener('change', (e) => {
+      const isOn = e.target.checked;
+      document.getElementById('mode-label').textContent = isOn ? 'Accurate Mode' : 'Quick Mode';
+      document.getElementById('mode-time').textContent = isOn ? '~25-30s' : '~20s';
+    });
+    
     this.initDataActionHandlers();
   }
   
@@ -445,6 +451,8 @@ class AppController {
       symptoms.push(cb.value);
     });
     
+    const useMonteCarlo = document.getElementById('monte-carlo-toggle')?.checked ?? true;
+    
     this.currentCasePayload = {
       ...this.currentCasePayload,
       case_id: this.currentCasePayload?.case_id || 'case_' + Date.now(),
@@ -457,7 +465,8 @@ class AppController {
       symptoms: symptoms.join(', ') || "None stated",
       tests: document.getElementById('tests').value || "None",
       has_image: !!this.uploadedImage,
-      image_data: this.uploadedImage || null
+      image_data: this.uploadedImage || null,
+      monte_carlo: useMonteCarlo
     };
 
     const btn = document.getElementById('analyze-btn');

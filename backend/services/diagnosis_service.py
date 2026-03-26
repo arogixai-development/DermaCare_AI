@@ -28,7 +28,7 @@ CACHE_MAX_SIZE = 100
 _last_diagnosis_cache: Dict[str, Any] = {}
 _diagnosis_response_cache: Dict[str, Any] = {}
 
-MONTE_CARLO_ITERATIONS = 3
+MONTE_CARLO_ITERATIONS = 1
 USE_MONTE_CARLO = True
 
 # Maximum image data size (2MB) to prevent DoS
@@ -293,10 +293,17 @@ def _map_confidence(consensus: float, variance: float) -> str:
     return "UNCERTAIN"
 
 
-def generate_diagnosis(case_data: dict) -> dict:
-    """Production diagnosis with Glass Box AI."""
+def generate_diagnosis(case_data: dict, use_monte_carlo: bool = True) -> dict:
+    """Production diagnosis with Glass Box AI.
+    
+    Args:
+        case_data: Patient case data
+        use_monte_carlo: If True, run uncertainty estimation (slower but more accurate).
+                         If False, skip MC for faster response.
+    """
     
     logger.info(f"[DIAGNOSIS] Starting diagnosis for patient: {case_data.get('patient_age')}yo, complaint: {str(case_data.get('complaint', ''))[:50]}...")
+    logger.info(f"[DIAGNOSIS] Monte Carlo: {'Enabled' if use_monte_carlo else 'Disabled'}")
     
     # SECURITY: Validate image size before processing
     if case_data.get("image_data") and not _validate_image_size(case_data.get("image_data")):
@@ -346,7 +353,7 @@ def generate_diagnosis(case_data: dict) -> dict:
     prompt = _build_prompt(case_data)
     logger.info(f"[DIAGNOSIS] Generated prompt ({len(prompt)} chars) for patient data")
     
-    if USE_MONTE_CARLO:
+    if use_monte_carlo:
         mc_metrics = _run_monte_carlo(prompt)
         confidence = _map_confidence(mc_metrics.get("consensus_score", 0.3), mc_metrics.get("variance_score", 0.5))
     else:
@@ -384,8 +391,8 @@ def generate_diagnosis(case_data: dict) -> dict:
         "uncertainty_flag": mc_metrics.get("uncertainty_flag", not llm_success),
         "discordant_indicators": mc_metrics.get("discordant_indicators", []),
         "recommendations_for_reduction": mc_metrics.get("recommendations", []),
-        "monte_carlo_iterations": mc_metrics.get("iterations_completed", MONTE_CARLO_ITERATIONS) if USE_MONTE_CARLO else 0,
-        "monte_carlo_enabled": USE_MONTE_CARLO
+        "monte_carlo_iterations": mc_metrics.get("iterations_completed", MONTE_CARLO_ITERATIONS) if use_monte_carlo else 0,
+        "monte_carlo_enabled": use_monte_carlo
     }
     
     result["gmu_analysis"] = {
@@ -537,8 +544,8 @@ JSON Format:
 REMEMBER: Your response must be valid JSON only. Use double quotes. No markdown. No explanations.'''
 
 
-async def generate_diagnosis_async(case_data: dict) -> dict:
-    return generate_diagnosis(case_data)
+async def generate_diagnosis_async(case_data: dict, use_monte_carlo: bool = True) -> dict:
+    return generate_diagnosis(case_data, use_monte_carlo)
 
 
 def get_last_diagnosis(case_data: Optional[dict] = None) -> Any:

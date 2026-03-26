@@ -30,6 +30,7 @@ class DiagnosisRequest(BaseModel):
     previous_biopsies: Optional[str] = Field(default=None, max_length=500)
     
     image_data: Optional[str] = Field(default=None, max_length=5000000)
+    monte_carlo: bool = Field(default=True, description="Enable Monte Carlo uncertainty estimation")
     
     @field_validator('complaint', 'lesion')
     @classmethod
@@ -47,7 +48,9 @@ def diagnosis(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
                 detail=f"AI Backend Offline: {status['error']}"
             )
         
-        result = generate_diagnosis(req.model_dump())
+        req_data = req.model_dump()
+        use_mc = req_data.pop('monte_carlo', True)
+        result = generate_diagnosis(req_data, use_monte_carlo=use_mc)
         return result
     except HTTPException:
         raise
@@ -60,7 +63,9 @@ def diagnosis(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
 async def diagnosis_async(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
     """Async diagnosis endpoint"""
     try:
-        result = await generate_diagnosis_async(req.model_dump())
+        req_data = req.model_dump()
+        use_mc = req_data.pop('monte_carlo', True)
+        result = await generate_diagnosis_async(req_data, use_monte_carlo=use_mc)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Async diagnosis generation failed: {str(e)}")
@@ -73,7 +78,9 @@ async def diagnosis_stream(req: DiagnosisRequest, payload: dict = Depends(requir
     For production, implement SSE with streaming LLM responses.
     """
     try:
-        result = generate_diagnosis(req.model_dump())
+        req_data = req.model_dump()
+        use_mc = req_data.pop('monte_carlo', True)
+        result = generate_diagnosis(req_data, use_monte_carlo=use_mc)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Diagnosis streaming failed: {str(e)}")

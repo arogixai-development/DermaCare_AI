@@ -492,6 +492,25 @@
               </div>
             </div>
 
+            <!-- Monte Carlo Toggle -->
+            <div class="monte-carlo-toggle" style="margin: 1rem 0; padding: 1rem; background: var(--surface-container-high); border-radius: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.875rem; color: var(--on-surface);">Analysis Mode</div>
+                  <div style="font-size: 0.75rem; color: var(--on-surface-variant);">
+                    <span id="mode-label">Accurate Mode</span> • <span id="mode-time">~25-30s</span>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="monte-carlo-toggle" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div style="font-size: 0.7rem; color: var(--on-surface-variant); margin-top: 0.5rem;">
+                Quick: ~20s (no uncertainty) • Accurate: ~25-30s (with confidence metrics)
+              </div>
+            </div>
+
             <div class="footer-actions">
               <button type="button" class="btn btn-secondary" data-action="go-intake">
                 <span class="material-icons">arrow_back</span>
