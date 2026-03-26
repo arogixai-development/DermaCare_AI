@@ -29,7 +29,7 @@ _last_diagnosis_cache: Dict[str, Any] = {}
 _diagnosis_response_cache: Dict[str, Any] = {}
 
 MONTE_CARLO_ITERATIONS = 1
-USE_MONTE_CARLO = True
+USE_MONTE_CARLO = False
 
 # Maximum image data size (2MB) to prevent DoS
 MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB in bytes
