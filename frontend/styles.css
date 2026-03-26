@@ -1949,6 +1949,31 @@ body {
   color: var(--on-error-container);
 }
 
+/* Uncertainty Metrics */
+#uncertainty-metrics {
+  background: var(--surface-container-high);
+  border-radius: 12px;
+  border: 1px solid var(--outline-variant);
+}
+
+#uncertainty-metrics .material-icons {
+  color: var(--primary);
+}
+
+#uncertainty-details strong {
+  color: var(--on-surface);
+}
+
+#uncertainty-details ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+}
+
+#uncertainty-details li {
+  margin-bottom: 0.25rem;
+  color: var(--on-surface-variant);
+}
+
 /* Form Grid */
 .form-grid {
   display: grid;

@@ -589,12 +589,13 @@
                   </div>
                 </div>
                 <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(193,198,212,0.15);">
-                  <div class="ai-insight-card" style="padding: 1rem;">
-                    <div class="icon" style="font-size: 0.625rem;">
+                  <div id="uncertainty-metrics" class="ai-insight-card" style="padding: 1rem;">
+                    <div class="icon" style="font-size: 0.625rem; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
                       <span class="material-icons" style="font-size: 1rem;">verified</span>
-                      AI Confidence
+                      AI Confidence Analysis
                     </div>
-                    <p id="ai-confidence-text" style="font-size: 0.875rem;">Based on Monte Carlo analysis</p>
+                    <div id="ai-confidence-badge" style="margin-bottom: 0.75rem;"></div>
+                    <div id="uncertainty-details" style="font-size: 0.8rem; color: var(--on-surface-variant);"></div>
                   </div>
                 </div>
               </div>

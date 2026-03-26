@@ -531,6 +531,97 @@ class AppController {
       diagList.innerHTML = '<p style="color: var(--on-surface-variant);">No differential diagnoses generated.</p>';
     }
     
+    // Uncertainty Metrics Display
+    const uncertaintyBadge = document.getElementById('ai-confidence-badge');
+    const uncertaintyDetails = document.getElementById('uncertainty-details');
+    const uncertainty = data.uncertainty_flags || {};
+    
+    if (uncertainty && uncertainty.monte_carlo_enabled) {
+      const confidence = uncertainty.overall_confidence || 'UNKNOWN';
+      const variance = uncertainty.variance_score || 0;
+      const confidenceInterval = uncertainty.confidence_interval || [0, 100];
+      const iterations = uncertainty.monte_carlo_iterations || 0;
+      const uncertaintyFlag = uncertainty.uncertainty_flag || false;
+      const discordant = uncertainty.discordant_indicators || [];
+      const recommendations = uncertainty.recommendations_for_reduction || [];
+      
+      // Confidence badge styling
+      let badgeColor, badgeBg;
+      if (confidence === 'HIGH') {
+        badgeColor = '#22c55e';
+        badgeBg = 'rgba(34, 197, 94, 0.1)';
+      } else if (confidence === 'MEDIUM') {
+        badgeColor = '#f59e0b';
+        badgeBg = 'rgba(245, 158, 11, 0.1)';
+      } else {
+        badgeColor = '#ef4444';
+        badgeBg = 'rgba(239, 68, 68, 0.1)';
+      }
+      
+      // Calculate confidence percentage for progress bar
+      const confPercent = confidence === 'HIGH' ? 80 : confidence === 'MEDIUM' ? 50 : 20;
+      
+      let badgeHTML = `
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+              <span style="font-weight: 600; font-size: 0.875rem;">${confidence} Confidence</span>
+              <span style="font-size: 0.75rem; color: var(--on-surface-variant);">${confPercent}%</span>
+            </div>
+            <div style="background: var(--surface-container-high); border-radius: 4px; height: 8px; overflow: hidden;">
+              <div style="width: ${confPercent}%; height: 100%; background: ${badgeColor}; border-radius: 4px; transition: width 0.3s;"></div>
+            </div>
+          </div>
+          ${uncertaintyFlag ? '<span class="material-icons" style="color: #ef4444; font-size: 1.5rem;" title="High Uncertainty">warning</span>' : '<span class="material-icons" style="color: #22c55e; font-size: 1.5rem;" title="Low Uncertainty">check_circle</span>'}
+        </div>
+      `;
+      uncertaintyBadge.innerHTML = badgeHTML;
+      
+      // Detailed metrics
+      let detailsHTML = `
+        <div style="margin-bottom: 0.5rem;">
+          <strong>Variance Score:</strong> ${variance.toFixed(2)} 
+          <span style="font-size: 0.7rem;">(${variance < 0.2 ? 'Low' : variance < 0.5 ? 'Medium' : 'High'} variance)</span>
+        </div>
+        <div style="margin-bottom: 0.5rem;">
+          <strong>Confidence Range:</strong> ${confidenceInterval[0]}% - ${confidenceInterval[1]}%
+        </div>
+        <div style="margin-bottom: 0.5rem;">
+          <strong>Analysis Runs:</strong> ${iterations} iterations completed
+        </div>
+      `;
+      
+      if (uncertaintyFlag && discordant.length > 0) {
+        detailsHTML += `<div style="margin-bottom: 0.5rem; color: #ef4444;">
+          <strong>⚠️ Uncertainty Detected:</strong><br>
+          <span style="font-size: 0.75rem;">${discordant.join(', ')}</span>
+        </div>`;
+      }
+      
+      if (recommendations.length > 0) {
+        detailsHTML += `<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(193,198,212,0.15);">
+          <strong style="font-size: 0.75rem;">Recommendations:</strong>
+          <ul style="margin: 0.25rem 0 0 1rem; padding-left: 0; font-size: 0.75rem;">
+            ${recommendations.slice(0, 2).map(r => `<li>${this.sanitizeEscape(r)}</li>`).join('')}
+          </ul>
+        </div>`;
+      }
+      
+      uncertaintyDetails.innerHTML = detailsHTML;
+    } else {
+      // Quick Mode - no uncertainty metrics
+      uncertaintyBadge.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="material-icons" style="color: var(--primary);">bolt</span>
+          <span style="font-weight: 600;">Quick Analysis Mode</span>
+        </div>
+      `;
+      uncertaintyDetails.innerHTML = `
+        <p style="margin: 0; font-size: 0.75rem;">Fast diagnosis without uncertainty metrics.</p>
+        <p style="margin: 0.25rem 0 0; font-size: 0.7rem; color: var(--outline);">Enable "Accurate Mode" for uncertainty analysis.</p>
+      `;
+    }
+    
     // Lesion Analysis
     const lesionList = document.getElementById('lesion-analysis-list');
     const lesionAnalysis = data.lesion_analysis || [];
