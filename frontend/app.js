@@ -106,6 +106,7 @@ class AppController {
           loginScreen.style.display = 'none';
           appContainer.style.display = 'flex';
           this.updateUserProfile();
+          this.syncOnLogin();
         } else {
           this.showLoginScreen();
         }
@@ -651,6 +652,12 @@ class AppController {
   async finishCase() {
     if (this.currentCasePayload) {
       await saveCase(this.currentCasePayload);
+      const syncResult = await syncCaseToBackend(this.currentCasePayload);
+      if (syncResult.success) {
+        console.log('Case synced to backend');
+      } else {
+        console.log('Case saved locally, sync pending');
+      }
     }
     this.showScreen('screen-dashboard');
   }
@@ -749,6 +756,11 @@ class AppController {
   
   async showHistory() {
     this.showScreen('screen-history');
+    
+    // First, try to sync from backend to get latest cases
+    await syncFromBackend();
+    
+    // Then load from local IndexedDB
     const cases = await getCases();
     this.historyCache = cases;
     
@@ -787,6 +799,18 @@ class AppController {
     document.getElementById('metric-total-cases').innerText = cases.length;
     document.getElementById('metric-completed-cases').innerText = cases.filter(c => c.status === 'completed').length;
     document.getElementById('metric-pending-cases').innerText = cases.filter(c => c.status === 'pending').length;
+  }
+  
+  async syncOnLogin() {
+    try {
+      const result = await syncFromBackend();
+      if (result.success && result.merged > 0) {
+        this.showToast(`Synced ${result.merged} cases from server`, 'success');
+        await this.updateDashboardMetrics();
+      }
+    } catch (e) {
+      console.log('Sync on login failed, will use local data');
+    }
   }
   
   loadSettings() {
