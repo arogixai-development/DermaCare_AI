@@ -286,40 +286,13 @@ class AppController {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
     
-    const checkRealInternet = () => {
-      return new Promise((resolve) => {
-        if (!navigator.onLine) {
-          resolve(false);
-          return;
-        }
-        
-        const img = new Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
-        img.src = 'https://www.gstatic.com/generate_204?' + Date.now();
-        
-        setTimeout(() => resolve(false), 5000);
-      });
-    };
-    
     const updateStatus = async () => {
       if (!dot || !text) return;
-      
-      const hasInternet = await checkRealInternet();
-      
-      if (!hasInternet) {
-        dot.style.background = '#ef4444';
-        text.textContent = 'Offline';
-        dot.classList.add('offline');
-        return;
-      }
-      
-      dot.classList.remove('offline');
       
       try {
         const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
         const ping = await fetch(`${apiBase}/health`, { 
           signal: controller.signal,
@@ -349,7 +322,6 @@ class AppController {
     window.addEventListener('offline', () => {
       if (dot) dot.style.background = '#ef4444';
       if (text) text.textContent = 'Offline';
-      if (dot) dot.classList.add('offline');
     });
     
     window.addEventListener('online', updateStatus);
