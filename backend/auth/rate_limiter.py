@@ -135,6 +135,45 @@ class RateLimiter:
         if ip not in self._login_attempts:
             self._login_attempts[ip] = []
         self._login_attempts[ip].append(datetime.now())
+    
+    def clear_lockout(self, username: str, ip: str) -> bool:
+        """Clear lockout for a specific user/IP."""
+        key = self._get_user_key(username, ip)
+        if key in self._locked_accounts:
+            del self._locked_accounts[key]
+        if key in self._login_attempts:
+            self._login_attempts[key] = []
+        logger.info(f"Lockout cleared for {username} from {ip}")
+        return True
+    
+    def clear_all_lockouts(self) -> int:
+        """Clear all lockouts (admin function)."""
+        count = len(self._locked_accounts)
+        self._locked_accounts = {}
+        self._login_attempts = {}
+        logger.info(f"All lockouts cleared ({count} removed)")
+        return count
+    
+    def get_status(self) -> Dict:
+        """Get rate limiter status."""
+        return {
+            "locked_accounts": len(self._locked_accounts),
+            "active_ips": len([k for k in self._login_attempts.keys() if k not in self._locked_accounts]),
+            "max_login_attempts": MAX_LOGIN_ATTEMPTS,
+            "lockout_duration_minutes": LOCKOUT_DURATION_MINUTES,
+            "rate_limit_max_requests": RATE_LIMIT_MAX_REQUESTS,
+            "rate_limit_window_seconds": RATE_LIMIT_WINDOW_SECONDS
+        }
+    
+    def get_stats(self) -> Dict:
+        """Get detailed statistics for admin dashboard."""
+        return {
+            "total_attempts": sum(len(v) for v in self._login_attempts.values()),
+            "failed_attempts": len(self._locked_accounts),
+            "successful_attempts": 0,  # Not tracked currently
+            "locked_count": len(self._locked_accounts),
+            "rate_limited_count": len([k for k in self._login_attempts.keys() if k not in self._locked_accounts])
+        }
 
 
 rate_limiter = RateLimiter()

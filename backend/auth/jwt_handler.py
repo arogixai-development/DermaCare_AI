@@ -1,6 +1,6 @@
 """
 JWT Handler - DermaCare AI
-=========================
+==========================
 Handles JWT token creation and validation.
 """
 import os
@@ -13,14 +13,31 @@ from jose import jwt, JWTError
 
 logger = logging.getLogger("DermaCare_AI.auth")
 
-# Get configuration from environment or generate secure defaults
+# Get configuration from environment - CRITICAL: Must have persistent secret
 def _get_secret_key() -> str:
     """Get JWT secret key from environment or generate one."""
     secret = os.getenv("SECRET_KEY")
     if not secret:
-        # Generate a new secret for this session
-        secret = secrets.token_urlsafe(64)
-        logger.warning("SECRET_KEY not set in environment. Using generated key. Sessions will not persist across restarts.")
+        # Try to generate a more persistent location
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        key_file = os.path.join(base_dir, '.jwt_key')
+        
+        if os.path.exists(key_file):
+            with open(key_file, 'r') as f:
+                secret = f.read().strip()
+                print("[JWT] Loaded secret key from file")
+        else:
+            # Generate new secret
+            secret = secrets.token_urlsafe(64)
+            # Save to file for persistence
+            try:
+                with open(key_file, 'w') as f:
+                    f.write(secret)
+                os.chmod(key_file, 0o600)
+                print(f"[JWT] Generated new secret key (saved to {key_file})")
+            except Exception as e:
+                print(f"[JWT] Could not save secret key: {e}")
+                logger.warning("SECRET_KEY not set and could not save to file. Sessions will not persist.")
     return secret
 
 SECRET_KEY = _get_secret_key()

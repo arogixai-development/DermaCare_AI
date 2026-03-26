@@ -3,6 +3,18 @@ DermaCare AI - FastAPI Backend Application
 ========================================
 Secure, local-only medical AI application for dermatology diagnosis.
 """
+import os
+from pathlib import Path
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+env_path = Path(__file__).parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
+    print(f"[CONFIG] Loaded environment from {env_path}")
+else:
+    print("[WARNING] No .env file found. Using default configuration.")
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -88,13 +100,17 @@ def home():
 def health_check():
     from backend.ai_engine.ollama_client import check_ollama_connection
     from backend.config import get_model_name
+    from backend.database.db import is_db_encrypted
     
     status = check_ollama_connection()
+    
     return {
         "status": "healthy" if status["connected"] else "degraded",
         "ollama_connected": status["connected"],
         "model": get_model_name(),
-        "gpu_acceleration": "enabled" if status["connected"] else "unavailable",
+        "gpu_acceleration": "enabled" if status.get("gpu_available") else "disabled",
+        "ollama_error": status.get("error"),
+        "database_encrypted": is_db_encrypted(),
         "version": "1.0.0",
         "security": "JWT Authentication Required"
     }

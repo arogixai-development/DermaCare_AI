@@ -300,10 +300,25 @@ def check_ollama_connection() -> Dict[str, Any]:
     """
     try:
         models = ollama.list()
+        
+        # Check if any model is loaded (indicates GPU usage)
+        gpu_enabled = False
+        try:
+            # Try to get show info for first model
+            if models.get("models"):
+                model_name = models["models"][0].get("name")
+                model_info = ollama.show(model_name)
+                # Check model info for GPU indicators
+                if model_info:
+                    gpu_enabled = True
+        except Exception:
+            pass
+        
         return {
             "connected": True,
             "models": [m.get("name") for m in models.get("models", [])],
-            "error": None
+            "error": None,
+            "gpu_available": gpu_enabled
         }
     except Exception as e:
         error_msg = str(e)
@@ -311,12 +326,14 @@ def check_ollama_connection() -> Dict[str, Any]:
             return {
                 "connected": False,
                 "models": [],
-                "error": "Ollama is not running. Please start Ollama: `ollama serve`"
+                "error": "Ollama is not running. Please start Ollama: `ollama serve`",
+                "gpu_available": False
             }
         return {
             "connected": False,
             "models": [],
-            "error": f"Ollama error: {error_msg}"
+            "error": f"Ollama error: {error_msg}",
+            "gpu_available": False
         }
 
 

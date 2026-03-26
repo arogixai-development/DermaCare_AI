@@ -21,5 +21,14 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
     last_login = Column(DateTime, nullable=True)
     
+    # Security: Token rotation tracking
+    # When password is changed, this version increments, invalidating all old tokens
+    token_version = Column(Integer, default=1, nullable=False)
+    
     def __repr__(self):
         return f"<User(username={self.username}, is_admin={self.is_admin})>"
+    
+    def increment_token_version(self):
+        """Increment token version to invalidate old tokens."""
+        self.token_version = (self.token_version or 1) + 1
+        return self.token_version

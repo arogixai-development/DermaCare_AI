@@ -120,8 +120,10 @@ async def login(request: Request, credentials: LoginRequest, response: Response,
     user.last_login = datetime.now(timezone.utc)
     db.commit()
     
-    access_token = create_access_token({"sub": user.username, "user_id": user.id})
-    refresh_token = create_refresh_token({"sub": user.username, "user_id": user.id})
+    # Include token_version in tokens for rotation security
+    token_version = user.token_version or 1
+    access_token = create_access_token({"sub": user.username, "user_id": user.id, "token_version": token_version})
+    refresh_token = create_refresh_token({"sub": user.username, "user_id": user.id, "token_version": token_version})
     
     response.set_cookie(
         key="refresh_token",
@@ -141,7 +143,7 @@ async def login(request: Request, credentials: LoginRequest, response: Response,
 
 @router.post("/refresh", response_model=TokenResponse)
 def refresh_token(request: Request, response: Response, db: Session = Depends(get_db)):
-    """Refresh access token using refresh token from cookie."""
+    """Refresh access token using refresh token from cookie. Implements token rotation for security."""
     refresh_token = request.cookies.get("refresh_token")
     
     if not refresh_token:
@@ -159,6 +161,8 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
         )
     
     username = payload.get("sub")
+    token_version_from_payload = payload.get("token_version", 1)
+    
     user = db.query(User).filter(User.username == username).first()
     
     if not user or not user.is_active:
@@ -167,8 +171,27 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
             detail="User not found or inactive"
         )
     
-    new_access_token = create_access_token({"sub": user.username, "user_id": user.id})
-    new_refresh_token = create_refresh_token({"sub": user.username, "user_id": user.id})
+    # SECURITY: Verify token version matches
+    # If password was changed or logout was forced, token_version won't match
+    current_version = user.token_version or 1
+    if token_version_from_payload != current_version:
+        logger.warning(f"Token version mismatch for user {username}: payload={token_version_from_payload}, db={current_version}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please login again."
+        )
+    
+    # Create new tokens with updated version
+    new_access_token = create_access_token({
+        "sub": user.username, 
+        "user_id": user.id,
+        "token_version": current_version
+    })
+    new_refresh_token = create_refresh_token({
+        "sub": user.username, 
+        "user_id": user.id,
+        "token_version": current_version
+    })
     
     response.set_cookie(
         key="refresh_token",
@@ -178,6 +201,8 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
+    
+    logger.info(f"Token refreshed for user {username}")
     
     return TokenResponse(
         access_token=new_access_token,
