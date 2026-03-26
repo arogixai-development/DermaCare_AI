@@ -33,7 +33,7 @@ class AppController {
     document.getElementById('monte-carlo-toggle')?.addEventListener('change', (e) => {
       const isOn = e.target.checked;
       document.getElementById('mode-label').textContent = isOn ? 'Accurate Mode' : 'Quick Mode';
-      document.getElementById('mode-time').textContent = isOn ? '~25-30s' : '~20s';
+      document.getElementById('mode-time').textContent = isOn ? '~45-50s' : '~15-20s';
     });
     
     this.initDataActionHandlers();
