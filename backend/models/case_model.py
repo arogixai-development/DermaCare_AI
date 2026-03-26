@@ -1,7 +1,7 @@
 """
 Case Model - SQLAlchemy ORM model for storing clinical cases.
 """
-from sqlalchemy import Column, String, Integer, Text, Float, DateTime
+from sqlalchemy import Column, String, Integer, Text, Float, DateTime, ForeignKey, Index
 from sqlalchemy.sql import func
 from backend.database.db import Base
 
@@ -12,6 +12,7 @@ class CaseRecord(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     case_id = Column(String(100), unique=True, nullable=False, index=True)
+    user_id = Column(String(100), nullable=False, index=True)
     timestamp = Column(String(50), nullable=False)
     
     # Patient demographics

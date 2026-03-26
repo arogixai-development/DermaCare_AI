@@ -30,18 +30,27 @@ class CaseSchema(BaseModel):
     ai_diagnosis: Optional[str] = ""
     status: Optional[str] = "completed"
 
+def get_user_id_from_payload(payload: dict) -> str:
+    """Extract user_id from auth payload."""
+    # payload contains {'user_id': xxx, 'email': xxx, 'exp': xxx}
+    return str(payload.get("user_id", ""))
+
 @router.post("/cases")
 def create_or_update_case(case_data: CaseSchema, db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
-        result = upsert_case(db, case_data.model_dump())
+        user_id = get_user_id_from_payload(payload)
+        result = upsert_case(db, case_data.model_dump(), user_id=user_id)
         return {"message": "Case saved successfully", "case_id": result.case_id}
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.get("/cases")
 def get_cases(db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
-        cases = get_all_cases(db)
+        user_id = get_user_id_from_payload(payload)
+        cases = get_all_cases(db, user_id=user_id)
         return {"cases": cases}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -49,7 +58,8 @@ def get_cases(db: Session = Depends(get_db), payload: dict = Depends(require_aut
 @router.get("/cases/{case_id}")
 def get_case(case_id: str, db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
-        case = get_case_by_id(db, case_id)
+        user_id = get_user_id_from_payload(payload)
+        case = get_case_by_id(db, case_id, user_id=user_id)
         if not case:
             raise HTTPException(status_code=404, detail="Case not found")
         return {"case": case}
@@ -61,7 +71,8 @@ def get_case(case_id: str, db: Session = Depends(get_db), payload: dict = Depend
 @router.delete("/cases/{case_id}")
 def remove_case(case_id: str, db: Session = Depends(get_db), payload: dict = Depends(require_auth)):
     try:
-        success = delete_case(db, case_id)
+        user_id = get_user_id_from_payload(payload)
+        success = delete_case(db, case_id, user_id=user_id)
         if not success:
             raise HTTPException(status_code=404, detail="Case not found")
         return {"message": "Case deleted"}

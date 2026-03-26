@@ -86,6 +86,7 @@ class UserResponse(BaseModel):
     username: str
     email: Optional[str] = None
     is_admin: bool
+    user_id: int
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -198,7 +199,8 @@ def get_current_user(payload: dict = Depends(require_auth)):
     return UserResponse(
         username=payload.get("sub"),
         email=None,
-        is_admin=payload.get("user_id", 0) == 1
+        is_admin=payload.get("user_id", 0) == 1,
+        user_id=payload.get("user_id", 0)
     )
 
 

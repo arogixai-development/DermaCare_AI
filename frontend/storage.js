@@ -1,6 +1,6 @@
 const DB_NAME = "DermaCareDB";
 const STORE_NAME = "cases";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let db;
 
@@ -24,16 +24,38 @@ async function initDB() {
             // Create ObjectStore with UUID keyPath
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 const store = db.createObjectStore(STORE_NAME, { keyPath: "case_id" });
-                // We index timestamp so we can easily sort by newest
+                // Index timestamp for sorting
                 store.createIndex("timestamp", "timestamp", { unique: false });
+                // Index user_id for filtering by user
+                store.createIndex("user_id", "user_id", { unique: false });
+            } else if (event.oldVersion < 2) {
+                // Migration: add user_id index to existing database
+                const store = request.transaction.objectStore(STORE_NAME);
+                if (!store.indexNames.contains("user_id")) {
+                    store.createIndex("user_id", "user_id", { unique: false });
+                }
             }
         };
     });
 }
 
+// Get current user ID
+function getCurrentUserId() {
+    if (window.auth?.user?.user_id) {
+        return String(window.auth.user.user_id);
+    }
+    return 'anonymous';
+}
+
 // 1. Save Case (Handles pending vs complete and auto-generates UUID/Timestamp)
 async function saveCase(caseData) {
     if (!db) await initDB();
+    
+    // Ensure user_id is set
+    if (!caseData.user_id) {
+        caseData.user_id = getCurrentUserId();
+    }
+    
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([STORE_NAME], "readwrite");
         const store = transaction.objectStore(STORE_NAME);
@@ -52,16 +74,20 @@ async function saveCase(caseData) {
     });
 }
 
-// 2. Get Cases (Sorted by newest timestamp)
+// 2. Get Cases for current user (Sorted by newest timestamp)
 async function getCases() {
     if (!db) await initDB();
+    
+    const currentUserId = getCurrentUserId();
+    
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([STORE_NAME], "readonly");
         const store = transaction.objectStore(STORE_NAME);
-        const request = store.getAll();
+        const userIndex = store.index("user_id");
+        const request = userIndex.getAll(currentUserId);
         
         request.onsuccess = () => {
-            // Sort cases by timestamp mathematically descending
+            // Sort cases by timestamp descending
             const cases = request.result.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             resolve(cases);
         };
@@ -69,7 +95,21 @@ async function getCases() {
     });
 }
 
-// 3. Delete Case
+// 3. Get ALL cases (admin function - use with caution)
+async function getAllCasesRaw() {
+    if (!db) await initDB();
+    
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([STORE_NAME], "readonly");
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.getAll();
+        
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// 4. Delete Case
 async function deleteCase(caseId) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -82,17 +122,17 @@ async function deleteCase(caseId) {
     });
 }
 
-// 4. Get Backend URL from settings
+// 5. Get Backend URL from settings
 function getBackendUrl() {
     return localStorage.getItem('dermacare-backend-url') || 'http://127.0.0.1:8000';
 }
 
-// 5. Get Auth Token
+// 6. Get Auth Token
 function getAuthToken() {
     return localStorage.getItem('auth-token');
 }
 
-// 6. Sync single case to backend
+// 7. Sync single case to backend
 async function syncCaseToBackend(caseData) {
     const token = getAuthToken();
     if (!token) {
@@ -122,7 +162,7 @@ async function syncCaseToBackend(caseData) {
     }
 }
 
-// 7. Fetch all cases from backend
+// 8. Fetch all cases from backend for current user
 async function fetchCasesFromBackend() {
     const token = getAuthToken();
     if (!token) {
@@ -149,7 +189,7 @@ async function fetchCasesFromBackend() {
     }
 }
 
-// 8. Sync all local cases to backend
+// 9. Sync all local cases to backend
 async function syncAllCasesToBackend() {
     const token = getAuthToken();
     if (!token) {
@@ -173,12 +213,19 @@ async function syncAllCasesToBackend() {
     return { synced, failed };
 }
 
-// 9. Merge backend cases into IndexedDB
+// 10. Merge backend cases into IndexedDB (only for current user)
 async function mergeBackendCasesToLocal(backendCases) {
     if (!db) await initDB();
     
+    const currentUserId = getCurrentUserId();
     let merged = 0;
+    
     for (const backendCase of backendCases) {
+        // Only import cases for current user
+        if (backendCase.user_id !== currentUserId) {
+            continue;
+        }
+        
         const existing = await getCaseById(backendCase.case_id);
         if (!existing) {
             await saveCase(backendCase);
@@ -188,7 +235,7 @@ async function mergeBackendCasesToLocal(backendCases) {
     return merged;
 }
 
-// 10. Get single case by ID
+// 11. Get single case by ID
 async function getCaseById(caseId) {
     if (!db) await initDB();
     return new Promise((resolve, reject) => {
@@ -201,7 +248,7 @@ async function getCaseById(caseId) {
     });
 }
 
-// 11. Sync from backend (pull and merge)
+// 12. Sync from backend (pull and merge)
 async function syncFromBackend() {
     const result = await fetchCasesFromBackend();
     if (result.success && result.cases.length > 0) {
@@ -212,7 +259,7 @@ async function syncFromBackend() {
     return { success: false, reason: result.reason };
 }
 
-// 12. Delete case from backend
+// 13. Delete case from backend
 async function deleteCaseFromBackend(caseId) {
     const token = getAuthToken();
     if (!token) {
@@ -232,4 +279,18 @@ async function deleteCaseFromBackend(caseId) {
         console.error('Delete error:', error);
         return { success: false, reason: 'network_error' };
     }
+}
+
+// 14. Clear all cases for current user (local only)
+async function clearUserCases() {
+    if (!db) await initDB();
+    
+    const currentUserId = getCurrentUserId();
+    const cases = await getCases();
+    
+    for (const c of cases) {
+        await deleteCase(c.case_id);
+    }
+    
+    return { cleared: cases.length };
 }

@@ -453,10 +453,17 @@ class AppController {
     
     const useMonteCarlo = document.getElementById('monte-carlo-toggle')?.checked ?? true;
     
+    // Get current user_id for case ownership
+    let userId = 'anonymous';
+    if (window.auth?.user?.user_id) {
+      userId = String(window.auth.user.user_id);
+    }
+    
     this.currentCasePayload = {
       ...this.currentCasePayload,
       case_id: this.currentCasePayload?.case_id || 'case_' + Date.now(),
       timestamp: this.currentCasePayload?.timestamp || new Date().toISOString(),
+      user_id: userId,
       patient_age: parseInt(document.getElementById('patient_age').value),
       geographic_region: document.getElementById('geographic_region').value,
       skin_phototype: document.getElementById('skin_phototype').value || "UNKNOWN",
