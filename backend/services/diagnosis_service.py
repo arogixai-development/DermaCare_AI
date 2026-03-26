@@ -177,7 +177,7 @@ def _run_monte_carlo(prompt: str) -> Dict[str, Any]:
     
     for i, temp in enumerate(temperatures[:MONTE_CARLO_ITERATIONS]):
         try:
-            raw = run_ai_with_retry(prompt, max_tokens=4000, format="json", max_retries=0)
+            raw = run_ai_with_retry(prompt, max_tokens=512, format="json", max_retries=0)
             parsed, success = parse_and_validate(raw, {"required_keys": {}, "defaults": {}}, {}, "diagnosis")
             if success:
                 results.append({"success": True, "data": parsed})
@@ -361,7 +361,7 @@ def generate_diagnosis(case_data: dict, use_monte_carlo: bool = True) -> dict:
         confidence = "MEDIUM"
     
     logger.info("[DIAGNOSIS] Calling LLM...")
-    raw = run_ai_with_retry(prompt, max_tokens=2048, format="json", max_retries=2)
+    raw = run_ai_with_retry(prompt, max_tokens=512, format="json", max_retries=0)
     
     # DEBUG: Log raw LLM response
     logger.info(f"[DIAGNOSIS] Raw LLM response length: {len(raw)} chars")
