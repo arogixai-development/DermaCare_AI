@@ -286,10 +286,24 @@ class AppController {
     const dot = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
     
+    const checkInternetConnectivity = async () => {
+      try {
+        const response = await fetch('https://www.google.com/favicon.ico', { 
+          mode: 'no-cors',
+          cache: 'no-store'
+        });
+        return response.type === 'opaque' || response.ok;
+      } catch {
+        return false;
+      }
+    };
+    
     const updateStatus = async () => {
       if (!dot || !text) return;
       
-      if (!navigator.onLine) {
+      const isOnline = await checkInternetConnectivity();
+      
+      if (!isOnline) {
         dot.style.background = '#ef4444';
         text.textContent = 'Offline';
         return;
@@ -328,8 +342,8 @@ class AppController {
     window.addEventListener('offline', updateStatus);
     window.addEventListener('online', updateStatus);
     
-    setInterval(updateStatus, 30000);
-    setTimeout(updateStatus, 1000);
+    setInterval(updateStatus, 15000);
+    setTimeout(updateStatus, 2000);
   }
   
   showScreen(targetId, e) {
