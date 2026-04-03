@@ -1,36 +1,18 @@
 # DermaCare AI - Production Dockerfile (PostgreSQL)
-# Multi-stage build for optimized image size
 
-# Stage 1: Builder
-FROM python:3.10-slim as builder
-
-WORKDIR /app
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements first for better caching
-COPY requirements.txt .
-
-# Install Python dependencies to system
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Stage 2: Production
 FROM python:3.10-slim
 
-LABEL maintainer="DermaCare AI"
-LABEL description="DermaCare AI - Dermatology Clinical Decision Support System"
-
 WORKDIR /app
 
-# Install runtime dependencies only
+# Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY backend/ ./backend/
@@ -46,8 +28,8 @@ ENV HOST=0.0.0.0
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run uvicorn
-CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run uvicorn using python -m
+CMD ["python", "-m", "uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
