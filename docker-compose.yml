@@ -1,0 +1,138 @@
+# DermaCare AI - Production Docker Compose
+# Multi-service orchestration for Oracle Cloud deployment
+
+version: '3.8'
+
+services:
+  # ============================================
+  # FastAPI Backend Service
+  # ============================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dermacare-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - SQLCIPHER_KEY=${SQLCIPHER_KEY:-dummy}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend:ro
+      - ./data:/app/data:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dermacare-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  db:
+    image: postgres:15-alpine
+    container_name: dermacare-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME:-dermacare}
+      - POSTGRES_USER=${DB_USER:-dermacare}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dermacare}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - dermacare-network
+
+  # ============================================
+  # Nginx Reverse Proxy
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: dermacare-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/ssl:/etc/nginx/ssl:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - dermacare-network
+    depends_on:
+      - backend
+
+  # ============================================
+  # Backup Service (Optional)
+  # ============================================
+  backup:
+    image: postgres:15-alpine
+    container_name: dermacare-backup
+    restart: unless-stopped
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=${DB_NAME:-dermacare}
+      - POSTGRES_USER=${DB_USER:-dermacare}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 2 * * *}  # Daily at 2 AM
+      - RETENTION_DAYS=${RETENTION_DAYS:-7}
+    volumes:
+      - ./backups:/backups
+      - postgres_data:/var/lib/postgresql/data:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo 'Backup service started'
+      while true; do
+        echo 'Backup: $$(date)' >> /backups/backup.log
+        pg_dump -h $$POSTGRES_HOST -U $$POSTGRES_USER $$POSTGRES_DB > /backups/dermacare_$$(date +%Y%m%d_%H%M%S).sql
+        # Keep only last N backups
+        ls -t /backups/*.sql | tail -n +$$((RETENTION_DAYS+1)) | xargs -r rm
+        echo 'Backup complete. Sleeping for 24 hours...'
+        sleep 86400
+      done
+      "
+    networks:
+      - dermacare-network
+    depends_on:
+      - db
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  dermacare-network:
+    driver: bridge
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    driver: local

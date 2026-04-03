@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-from backend.database.db import get_db, engine, Base
+from backend.database.db_postgres import get_db, engine, Base
 from backend.services.case_service import upsert_case, get_all_cases, get_case_by_id, delete_case
 from backend.auth.middleware import require_auth
 

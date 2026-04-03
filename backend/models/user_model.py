@@ -5,7 +5,7 @@ SQLAlchemy ORM model for user authentication.
 """
 from sqlalchemy import Column, String, Integer, Boolean, DateTime
 from sqlalchemy.sql import func
-from backend.database.db import Base
+from backend.database.db_postgres import Base
 
 
 class User(Base):

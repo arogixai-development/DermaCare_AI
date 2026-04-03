@@ -3,7 +3,7 @@ Case Model - SQLAlchemy ORM model for storing clinical cases.
 """
 from sqlalchemy import Column, String, Integer, Text, Float, DateTime, ForeignKey, Index
 from sqlalchemy.sql import func
-from backend.database.db import Base
+from backend.database.db_postgres import Base
 
 
 class CaseRecord(Base):

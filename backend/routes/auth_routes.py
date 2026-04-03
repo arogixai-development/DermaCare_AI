@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import secrets
 import logging
 
-from backend.database.db import get_db, engine, Base
+from backend.database.db_postgres import get_db, engine, Base, DB_IS_POSTGRES
 from backend.models.user_model import User
 from backend.auth.password import hash_password, verify_password
 from backend.auth.jwt_handler import (
