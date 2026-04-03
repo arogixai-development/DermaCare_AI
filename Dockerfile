@@ -1,4 +1,4 @@
-# DermaCare AI - Production Dockerfile
+# DermaCare AI - Production Dockerfile (PostgreSQL)
 # Multi-stage build for optimized image size
 
 # Stage 1: Builder
@@ -6,7 +6,7 @@ FROM python:3.10-slim as builder
 
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies (no SQLCipher needed for PostgreSQL)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
