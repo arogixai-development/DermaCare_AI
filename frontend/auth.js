@@ -11,7 +11,7 @@ class AuthManager {
     this.refreshTimer = null;
     this.isAuthenticated = false;
     this.user = null;
-    this.API_BASE = this._getStoredApiBase() || 'http://127.0.0.1:8000';
+    this.API_BASE = this._getStoredApiBase() || 'https://dermacare-ai-f3rr.onrender.com';
     this.initFromStorage();
   }
 
