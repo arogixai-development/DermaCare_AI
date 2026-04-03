@@ -77,10 +77,17 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
 
-# SECURITY: Trusted host middleware - only allow local access
+# Trusted host middleware - configurable for production
+_allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = (
+    [host.strip() for host in _allowed_hosts_env.split(",")]
+    if _allowed_hosts_env
+    else ["localhost", "127.0.0.1", "*.localhost"]
+)
+
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"],
+    allowed_hosts=ALLOWED_HOSTS,
 )
 
 # Register routers
