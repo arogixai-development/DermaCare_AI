@@ -1,0 +1,52 @@
+# Render Blueprint - DermaCare AI
+# Deploy entire stack with one click
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  - type: postgres
+    name: dermacare-db
+    plan: free
+    databaseName: dermacare
+    ipAllowList: []
+
+  # ============================================
+  # FastAPI Backend
+  # ============================================
+  - type: web
+    name: dermacare-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dermacare-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OLLAMA_BASE_URL
+        value: http://localhost:11434
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+  # ============================================
+  # Static Frontend (Optional)
+  # ============================================
+  # Uncomment to deploy frontend separately
+  # - type: web
+  #   name: dermacare-frontend
+  #   plan: free
+  #   buildCommand: ""
+  #   staticPublishPath: ./frontend
+  #   envVars:
+  #     - key: API_BASE_URL
+  #       fromService:
+  #         name: dermacare-api
+  #         envVarKey: RENDER_EXTERNAL_URL
