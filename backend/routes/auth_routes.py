@@ -265,7 +265,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/init-admin")
+@router.get("/init-admin")
 def init_admin(db: Session = Depends(get_db)):
     """Initialize default admin user. Call this once after deployment."""
     try:
