@@ -263,3 +263,27 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         email=user.email,
         is_admin=user.is_admin
     )
+
+
+@router.post("/init-admin")
+def init_admin(db: Session = Depends(get_db)):
+    """Initialize default admin user. Call this once after deployment."""
+    existing = db.query(User).filter(User.username == DEFAULT_ADMIN_USERNAME).first()
+    if existing:
+        return {"message": "Admin already exists", "username": existing.username}
+    
+    admin = User(
+        username=DEFAULT_ADMIN_USERNAME,
+        email=DEFAULT_ADMIN_USERNAME,
+        hashed_password=hash_password(DEFAULT_ADMIN_PASSWORD),
+        is_admin=True,
+        is_active=True
+    )
+    db.add(admin)
+    db.commit()
+    
+    return {
+        "message": "Admin created successfully",
+        "username": DEFAULT_ADMIN_USERNAME,
+        "password": DEFAULT_ADMIN_PASSWORD
+    }
