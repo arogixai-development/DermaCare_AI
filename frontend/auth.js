@@ -77,7 +77,7 @@ class AuthManager {
    * Login with username/password
    */
   async login(username, password) {
-    const candidates = [this.API_BASE, 'http://127.0.0.1:8000', 'http://localhost:8000']
+    const candidates = [this.API_BASE, 'https://cement-universe-physically-screenshots.trycloudflare.com', 'http://127.0.0.1:8000', 'http://localhost:8000']
       .filter((v, i, a) => v && a.indexOf(v) === i);
 
     try {
