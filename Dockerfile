@@ -27,9 +27,5 @@ ENV HOST=0.0.0.0
 # Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Run uvicorn using python -m
-CMD ["python", "-m", "uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run uvicorn dynamically binding to PORT environment variable with a default of 8000
+CMD sh -c "python -m uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8000}"

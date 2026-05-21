@@ -1,0 +1,37 @@
+# Git and IDE configs
+.git
+.github
+.vscode
+.cursor
+.gitignore
+
+# Environment & Credentials
+.env
+.env.*
+!.env.example
+
+# Local Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.cache
+
+# Local SQLite databases
+*.sqlite
+*.db
+*.db-journal
+backend/database/dermacare.db
+
+# Frontend assets & node
+node_modules/
+dist/
+build/
+frontend/
+
+# Local audit and testing files
+artifacts/
+docs/*.log
+C:\Users\ragul\.gemini\antigravity\brain\

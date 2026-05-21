@@ -17,7 +17,7 @@ def get_config() -> dict:
         
         # API settings
         "api_host": os.getenv("API_HOST", "0.0.0.0"),
-        "api_port": int(os.getenv("API_PORT", "8000")),
+        "api_port": int(os.getenv("PORT") or os.getenv("API_PORT") or "8000"),
         
         # CORS settings (comma-separated origins)
         "cors_origins": os.getenv("CORS_ORIGINS", "*").split(","),
