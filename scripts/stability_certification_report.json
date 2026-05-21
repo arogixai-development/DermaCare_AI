@@ -1,0 +1,209 @@
+{
+  "api_base": "http://127.0.0.1:8001",
+  "cache_version_note": "Server uses v1:{VERSION}:sha256(essential); essential excludes API `context` field.",
+  "pipeline_observation": "API-only certification. Raw LLM and extracted JSON are not returned by /diagnosis; observe parse_meta, response_type, clinical_reasoning shape.",
+  "runs": [
+    {
+      "label": "1a_psoriasis_accurate_fresh",
+      "http_ok": true,
+      "latency_sec": 41.609,
+      "cached": false,
+      "response_type": "full",
+      "_partial_llm": null,
+      "fallback_reason": null,
+      "confidence": 0.4,
+      "top_diagnosis": "Psoriasis vulgaris",
+      "reasoning_lines": 1,
+      "reasoning_words": 7,
+      "dict_blob": false,
+      "parse_meta_status": "FULL"
+    },
+    {
+      "label": "1b_psoriasis_accurate_repeat",
+      "http_ok": true,
+      "latency_sec": 0.003,
+      "cached": true,
+      "response_type": "full",
+      "_partial_llm": null,
+      "fallback_reason": null,
+      "confidence": 0.4,
+      "top_diagnosis": "Psoriasis vulgaris",
+      "reasoning_lines": 1,
+      "reasoning_words": 7,
+      "dict_blob": false,
+      "parse_meta_status": "FULL"
+    },
+    {
+      "label": "1c_psoriasis_accurate_variant_hash",
+      "http_ok": true,
+      "latency_sec": 39.963,
+      "cached": false,
+      "response_type": "full",
+      "_partial_llm": null,
+      "fallback_reason": null,
+      "confidence": 0.4,
+      "top_diagnosis": "Psoriasis vulgaris",
+      "reasoning_lines": 1,
+      "reasoning_words": 76,
+      "dict_blob": true,
+      "parse_meta_status": "FULL"
+    },
+    {
+      "label": "2_fungal_quick",
+      "http_ok": true,
+      "latency_sec": 21.242,
+      "cached": false,
+      "response_type": "partial",
+      "_partial_llm": true,
+      "fallback_reason": "groq_disabled_for_mode",
+      "confidence": 0.65,
+      "top_diagnosis": "Provisional Tinea Corporis (pending clinical confirmation)",
+      "reasoning_lines": 1,
+      "reasoning_words": 42,
+      "dict_blob": false,
+      "parse_meta_status": "INVALID"
+    },
+    {
+      "label": "3_weak_quick",
+      "http_ok": true,
+      "latency_sec": 21.205,
+      "cached": false,
+      "response_type": "partial",
+      "_partial_llm": true,
+      "fallback_reason": "groq_disabled_for_mode",
+      "confidence": 0.65,
+      "top_diagnosis": "Provisional Dermatitis (pending clinical confirmation)",
+      "reasoning_lines": 1,
+      "reasoning_words": 37,
+      "dict_blob": false,
+      "parse_meta_status": "INVALID"
+    }
+  ],
+  "cache_behavior": {
+    "repeat_marked_cached": true,
+    "repeat_faster_than_fresh": true,
+    "fresh_latency_sec": 41.609,
+    "repeat_latency_sec": 0.003,
+    "variant_not_same_as_1a": true,
+    "variant_latency_sec": 39.963,
+    "variant_cached_flag": false
+  },
+  "health_before": {
+    "status": "healthy",
+    "ollama_connected": true,
+    "model": "phi3",
+    "gpu_acceleration": "disabled",
+    "ollama_error": null,
+    "database_type": "sqlite",
+    "database_host": "N/A",
+    "diagnosis_runtime": {
+      "total_runs": 8,
+      "full_model_outputs": 1,
+      "partial_model_outputs": 7,
+      "fallback_outputs": 0,
+      "parse_failures": 6,
+      "fallback_rate": 0.0,
+      "parse_failure_rate": 0.75,
+      "parse_status_counts": {
+        "FULL": 1,
+        "PARTIAL": 1,
+        "INVALID": 6
+      },
+      "fallback_reason_counts": {
+        "groq_disabled_for_mode": 6,
+        "partial_salvage": 1
+      },
+      "fallback_provider_counts": {
+        "ollama_retry": 6,
+        "groq": 0,
+        "openai_disabled": 0,
+        "none": 2
+      },
+      "groq_usage_rate": 0.0,
+      "cost_estimate_usd_total": 0.0,
+      "cost_estimate_usd_per_100_requests": 0.0,
+      "gross_margin_pct": 100.0,
+      "fallback_dependency_rate": 0.0,
+      "low_confidence_cases": 0,
+      "latency_ms_p95": 49355,
+      "latency_ms_last": 23763,
+      "timeout_spike_count": 0,
+      "timeout_spike_detected": false,
+      "max_latency_ms_observed": 49355,
+      "quick_target_seconds": 25.0,
+      "accurate_target_seconds": 60.0
+    },
+    "version": "1.0.0",
+    "security": "JWT Authentication Required"
+  },
+  "health_after": {
+    "status": "healthy",
+    "ollama_connected": true,
+    "model": "phi3",
+    "gpu_acceleration": "disabled",
+    "ollama_error": null,
+    "database_type": "sqlite",
+    "database_host": "N/A",
+    "diagnosis_runtime": {
+      "total_runs": 12,
+      "full_model_outputs": 3,
+      "partial_model_outputs": 9,
+      "fallback_outputs": 0,
+      "parse_failures": 9,
+      "fallback_rate": 0.0,
+      "parse_failure_rate": 0.75,
+      "parse_status_counts": {
+        "FULL": 3,
+        "PARTIAL": 1,
+        "INVALID": 8
+      },
+      "fallback_reason_counts": {
+        "groq_disabled_for_mode": 8,
+        "partial_salvage": 1
+      },
+      "fallback_provider_counts": {
+        "ollama_retry": 9,
+        "groq": 0,
+        "openai_disabled": 0,
+        "none": 3
+      },
+      "groq_usage_rate": 0.0,
+      "cost_estimate_usd_total": 0.0,
+      "cost_estimate_usd_per_100_requests": 0.0,
+      "gross_margin_pct": 100.0,
+      "fallback_dependency_rate": 0.0,
+      "low_confidence_cases": 0,
+      "latency_ms_p95": 49355,
+      "latency_ms_last": 21202,
+      "timeout_spike_count": 0,
+      "timeout_spike_detected": false,
+      "max_latency_ms_observed": 49355,
+      "quick_target_seconds": 25.0,
+      "accurate_target_seconds": 60.0
+    },
+    "version": "1.0.0",
+    "security": "JWT Authentication Required"
+  },
+  "stability_metrics": {
+    "parse_failure_rate_pct": 75.0,
+    "full_vs_total_pct": 25.0,
+    "partial_vs_total_pct": 75.0,
+    "latency_p95_ms": 49355,
+    "reasoning_readable_runs": "0/5",
+    "this_session_partial_pct": 40.0
+  },
+  "confirmed_stable": [
+    "Versioned RAM cache keys (v1:VERSION:hash) in diagnosis_service",
+    "DELETE /diagnosis/cache clears server cache for controlled tests",
+    "Guard + fallback + prompt paths not modified in this certification",
+    "No crashes observed on successful HTTP paths"
+  ],
+  "known_limitations": [
+    "phi3 JSON variability \u2192 Quick mode partial/failsafe rate may stay high unless model or Groq policy changes",
+    "LLM non-determinism: ranking and wording can vary between fresh runs",
+    "Case hash ignores `context`; only complaint/lesion/symptoms/age/region/history/monte_carlo affect cache",
+    "/diagnosis does not echo raw LLM or pre-validation JSON"
+  ],
+  "remaining_critical_issues": [],
+  "final_verdict": "STABLE"
+}

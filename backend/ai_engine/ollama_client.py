@@ -13,15 +13,39 @@ import hashlib
 import json
 import logging
 import statistics
+import threading
+import urllib.error
+import urllib.request
 from typing import Optional, Dict, Any, List, Tuple
 from functools import lru_cache
-from backend.config import get_model_name
+from backend.config import get_model_name, get_reliability_config
 
 logger = logging.getLogger("DermaCare_AI.ollama_client")
+
+GROQ_COST_PER_1K_TOKENS_USD = 0.0018
+_GROQ_INIT_LOGGED = False
+_GROQ_MISSING_LOGGED = False
 
 class OllamaConnectionError(Exception):
     """Raised when Ollama is not available or not running."""
     pass
+
+
+class OllamaOverloadError(OllamaConnectionError):
+    """Raised when concurrency guard rejects due to high load."""
+    pass
+
+
+class OllamaTimeoutError(OllamaConnectionError):
+    """Raised when AI call exceeds the configured timeout."""
+    pass
+
+
+_LLM_CONCURRENCY_LIMIT = 6
+_LLM_ASYNC_SEMAPHORE = asyncio.Semaphore(_LLM_CONCURRENCY_LIMIT)
+_LLM_SYNC_SEMAPHORE = threading.BoundedSemaphore(_LLM_CONCURRENCY_LIMIT)
+_LLM_ACTIVE_CALLS = 0
+_LLM_ACTIVE_LOCK = threading.Lock()
 
 class UncertaintyEstimator:
     """
@@ -471,39 +495,210 @@ def run_ai_with_retry(
     max_tokens: int = 2000,
     format: str = None,
     max_retries: int = 1,
+    timeout_seconds: Optional[float] = None,
+    overload_wait_seconds: float = 0.2,
 ) -> str:
     """
     Run AI inference with automatic retry on empty or failed responses.
     """
-    last_response = ""
+    global _LLM_ACTIVE_CALLS
+    with _LLM_ACTIVE_LOCK:
+        if _LLM_ACTIVE_CALLS >= _LLM_CONCURRENCY_LIMIT:
+            raise OllamaOverloadError("System under high load, please retry")
+    acquired = _LLM_SYNC_SEMAPHORE.acquire(timeout=max(0.01, overload_wait_seconds))
+    if not acquired:
+        raise OllamaOverloadError("System under high load, please retry")
+    try:
+        with _LLM_ACTIVE_LOCK:
+            _LLM_ACTIVE_CALLS += 1
+        last_response = ""
 
-    for attempt in range(max_retries + 1):
-        try:
-            response = run_ai_optimized(prompt, max_tokens=max_tokens, format=format)
+        for attempt in range(max_retries + 1):
+            try:
+                if timeout_seconds and timeout_seconds > 0:
+                    response = asyncio.run(
+                        asyncio.wait_for(
+                            asyncio.to_thread(
+                                run_ai_optimized, prompt, max_tokens, format
+                            ),
+                            timeout=float(timeout_seconds),
+                        )
+                    )
+                else:
+                    response = run_ai_optimized(prompt, max_tokens=max_tokens, format=format)
 
-            if response and response.strip():
-                if attempt > 0:
-                    logger.info("run_ai_with_retry: succeeded on attempt %d", attempt + 1)
-                return response
+                if response and response.strip():
+                    if attempt > 0:
+                        logger.info("run_ai_with_retry: succeeded on attempt %d", attempt + 1)
+                    return response
 
-            logger.warning(
-                "run_ai_with_retry: attempt %d returned empty response – retrying…",
-                attempt + 1,
-            )
-            last_response = response or ""
+                logger.warning(
+                    "run_ai_with_retry: attempt %d returned empty response - retrying",
+                    attempt + 1,
+                )
+                last_response = response or ""
 
-        except Exception as exc:
-            logger.warning(
-                "run_ai_with_retry: attempt %d raised %s: %s – retrying…",
-                attempt + 1, type(exc).__name__, exc,
-            )
-            last_response = ""
+            except TimeoutError:
+                raise OllamaTimeoutError("AI request timed out")
+            except Exception as exc:
+                logger.warning(
+                    "run_ai_with_retry: attempt %d raised %s: %s - retrying",
+                    attempt + 1, type(exc).__name__, exc,
+                )
+                last_response = ""
 
-    logger.error(
-        "run_ai_with_retry: all %d attempt(s) failed – returning last response",
-        max_retries + 1,
+        logger.error(
+            "run_ai_with_retry: all %d attempt(s) failed - returning last response",
+            max_retries + 1,
+        )
+        return last_response
+    finally:
+        with _LLM_ACTIVE_LOCK:
+            _LLM_ACTIVE_CALLS = max(0, _LLM_ACTIVE_CALLS - 1)
+        _LLM_SYNC_SEMAPHORE.release()
+
+
+async def run_ai_with_retry_async(
+    prompt: str,
+    max_tokens: int = 2000,
+    format: str = None,
+    max_retries: int = 1,
+    timeout_seconds: Optional[float] = None,
+    overload_wait_seconds: float = 0.2,
+) -> str:
+    """
+    Async variant with asyncio semaphore-based concurrency guard.
+    """
+    global _LLM_ACTIVE_CALLS
+    with _LLM_ACTIVE_LOCK:
+        if _LLM_ACTIVE_CALLS >= _LLM_CONCURRENCY_LIMIT:
+            raise OllamaOverloadError("System under high load, please retry")
+    try:
+        await asyncio.wait_for(_LLM_ASYNC_SEMAPHORE.acquire(), timeout=max(0.01, overload_wait_seconds))
+    except TimeoutError:
+        raise OllamaOverloadError("System under high load, please retry")
+
+    try:
+        with _LLM_ACTIVE_LOCK:
+            _LLM_ACTIVE_CALLS += 1
+        last_response = ""
+        for attempt in range(max_retries + 1):
+            try:
+                call = asyncio.to_thread(run_ai_optimized, prompt, max_tokens, format)
+                response = await asyncio.wait_for(call, timeout=float(timeout_seconds)) if timeout_seconds else await call
+                if response and response.strip():
+                    return response
+                last_response = response or ""
+            except TimeoutError:
+                raise OllamaTimeoutError("AI request timed out")
+            except Exception as exc:
+                logger.warning(
+                    "run_ai_with_retry_async: attempt %d raised %s: %s",
+                    attempt + 1,
+                    type(exc).__name__,
+                    exc,
+                )
+                last_response = ""
+        return last_response
+    finally:
+        with _LLM_ACTIVE_LOCK:
+            _LLM_ACTIVE_CALLS = max(0, _LLM_ACTIVE_CALLS - 1)
+        _LLM_ASYNC_SEMAPHORE.release()
+
+
+def estimate_tokens(text: str) -> int:
+    """Rough token estimate for cost accounting."""
+    if not text:
+        return 0
+    return max(1, int(len(text) / 4))
+
+
+def estimate_groq_cost_usd(prompt: str, completion: str) -> float:
+    tokens = estimate_tokens(prompt) + estimate_tokens(completion)
+    return round((tokens / 1000.0) * GROQ_COST_PER_1K_TOKENS_USD, 6)
+
+
+def run_groq_fallback(
+    prompt: str,
+    max_tokens: int = 1024,
+    model_override: Optional[str] = None,
+    timeout_seconds: int = 30,
+) -> Dict[str, Any]:
+    """
+    Contingency fallback using Groq OpenAI-compatible API.
+    Returns structured metadata for observability.
+    """
+    cfg = get_reliability_config()
+    api_key = cfg.get("groq_api_key", "")
+    model = model_override or cfg.get("groq_model", "llama3-70b-8192")
+    global _GROQ_INIT_LOGGED, _GROQ_MISSING_LOGGED
+    if not api_key:
+        if not _GROQ_MISSING_LOGGED:
+            logger.warning("GROQ_API_KEY is missing. Groq fallback is disabled.")
+            _GROQ_MISSING_LOGGED = True
+        return {
+            "ok": False,
+            "provider": "groq",
+            "error": "groq_api_key_missing",
+            "content": "",
+            "estimated_cost_usd": 0.0,
+        }
+    if not _GROQ_INIT_LOGGED:
+        logger.info("Groq fallback initialized successfully")
+        _GROQ_INIT_LOGGED = True
+
+    payload = {
+        "model": model,
+        "temperature": 0.1,
+        "max_tokens": min(max_tokens, 1024),
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    request = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
     )
-    return last_response
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            content = (
+                data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            )
+            return {
+                "ok": bool(content and content.strip()),
+                "provider": "groq",
+                "error": None,
+                "content": content or "",
+                "model": model,
+                "estimated_cost_usd": estimate_groq_cost_usd(prompt, content or ""),
+            }
+    except urllib.error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8")[:400]
+        except Exception:
+            body = str(exc)
+        logger.warning("Groq fallback HTTP error: %s", body)
+        return {
+            "ok": False,
+            "provider": "groq",
+            "error": f"http_{exc.code}",
+            "content": "",
+            "estimated_cost_usd": 0.0,
+        }
+    except Exception as exc:
+        logger.warning("Groq fallback error: %s", exc)
+        return {
+            "ok": False,
+            "provider": "groq",
+            "error": str(exc),
+            "content": "",
+            "estimated_cost_usd": 0.0,
+        }
 
 
 def run_ai(prompt: str, format: str = None):

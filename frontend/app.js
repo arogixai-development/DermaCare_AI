@@ -489,7 +489,14 @@ class AppController {
         body: this.currentCasePayload
       });
       
-      if (!res.ok) throw new Error('Server error');
+      if (!res.ok) {
+        let detail = 'Server error';
+        try {
+          const errData = await res.json();
+          detail = errData.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
       
       const data = await res.json();
       this.currentCasePayload.diagnoses_list = data.differential_diagnosis || [];
@@ -514,11 +521,26 @@ class AppController {
   }
   
   parseAIResponse(data) {
+    const responseQuality = data._response_quality || (data._fallback ? 'fallback' : 'full');
+    const isFallback = !!data._fallback || responseQuality === 'fallback';
+    const isPartial = !!data._partial_llm || responseQuality === 'partial';
+
     // Differential Diagnoses
     const diffDx = data.differential_diagnosis || data.diagnoses || [];
     const diagList = document.getElementById('diagnosis-list');
+    const qualityBanner = isFallback
+      ? `<div style="margin-bottom:0.75rem;padding:0.6rem;border-radius:8px;background:rgba(239,68,68,0.12);color:#b91c1c;font-size:0.78rem;">
+          Decision-support fallback response. Escalate to dermatologist if high-risk or persistent lesions.
+        </div>`
+      : isPartial
+      ? `<div style="margin-bottom:0.75rem;padding:0.6rem;border-radius:8px;background:rgba(245,158,11,0.12);color:#92400e;font-size:0.78rem;">
+          Partial model response merged with safety defaults. Use with clinical caution.
+        </div>`
+      : `<div style="margin-bottom:0.75rem;padding:0.6rem;border-radius:8px;background:rgba(34,197,94,0.12);color:#166534;font-size:0.78rem;">
+          Model response passed relevance/safety checks. Clinical confirmation still required.
+        </div>`;
     if (diffDx.length > 0) {
-      diagList.innerHTML = diffDx.map((d, i) => `
+      diagList.innerHTML = qualityBanner + diffDx.map((d, i) => `
         <div class="diagnosis-item">
           <div class="diagnosis-header">
             <span class="diagnosis-name">${i === 0 ? '<span class="material-icons" style="color: var(--primary);">star</span> ' : ''}${this.sanitizeEscape(d.condition || 'Unknown')}</span>
@@ -528,7 +550,7 @@ class AppController {
         </div>
       `).join('');
     } else {
-      diagList.innerHTML = '<p style="color: var(--on-surface-variant);">No differential diagnoses generated.</p>';
+      diagList.innerHTML = `${qualityBanner}<p style="color: var(--on-surface-variant);">No differential diagnoses generated.</p>`;
     }
     
     // Uncertainty Metrics Display
@@ -547,38 +569,44 @@ class AppController {
       
       // Confidence badge styling
       let badgeColor, badgeBg;
+      let displayConfidence = confidence; // Create a display variable
       if (confidence === 'HIGH') {
         badgeColor = '#22c55e';
         badgeBg = 'rgba(34, 197, 94, 0.1)';
       } else if (confidence === 'MEDIUM') {
-        badgeColor = '#f59e0b';
-        badgeBg = 'rgba(245, 158, 11, 0.1)';
+        badgeColor = '#eab308'; // Less aggressive orange/yellow
+        badgeBg = 'rgba(234, 179, 8, 0.1)';
+        displayConfidence = 'MODERATED';
       } else {
-        badgeColor = '#ef4444';
-        badgeBg = 'rgba(239, 68, 68, 0.1)';
+        badgeColor = '#f97316'; // Orange instead of bright red
+        badgeBg = 'rgba(249, 115, 22, 0.1)';
+        displayConfidence = 'LIMITED';
       }
       
       // Calculate confidence percentage for progress bar
-      const confPercent = confidence === 'HIGH' ? 80 : confidence === 'MEDIUM' ? 50 : 20;
+      const confPercent = confidence === 'HIGH' ? 85 : confidence === 'MEDIUM' ? 65 : 40;
       
       let badgeHTML = `
         <div style="display: flex; align-items: center; gap: 0.75rem;">
           <div style="flex: 1;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-              <span style="font-weight: 600; font-size: 0.875rem;">${confidence} Confidence</span>
+              <span style="font-weight: 600; font-size: 0.875rem;">${displayConfidence} Confidence</span>
               <span style="font-size: 0.75rem; color: var(--on-surface-variant);">${confPercent}%</span>
             </div>
             <div style="background: var(--surface-container-high); border-radius: 4px; height: 8px; overflow: hidden;">
               <div style="width: ${confPercent}%; height: 100%; background: ${badgeColor}; border-radius: 4px; transition: width 0.3s;"></div>
             </div>
           </div>
-          ${uncertaintyFlag ? '<span class="material-icons" style="color: #ef4444; font-size: 1.5rem;" title="High Uncertainty">warning</span>' : '<span class="material-icons" style="color: #22c55e; font-size: 1.5rem;" title="Low Uncertainty">check_circle</span>'}
+          ${uncertaintyFlag ? '<span class="material-icons" style="color: #f97316; font-size: 1.5rem;" title="Uncertainty Flagged">info</span>' : '<span class="material-icons" style="color: #22c55e; font-size: 1.5rem;" title="Confidence Optimal">check_circle</span>'}
         </div>
       `;
       uncertaintyBadge.innerHTML = badgeHTML;
       
       // Detailed metrics
       let detailsHTML = `
+        <div style="margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(193,198,212,0.15);">
+          <strong>Confidence Context:</strong> ${this.sanitizeEscape(data.confidence_explanation || "Computed via Monte Carlo variance estimation.")}
+        </div>
         <div style="margin-bottom: 0.5rem;">
           <strong>Variance Score:</strong> ${variance.toFixed(2)} 
           <span style="font-size: 0.7rem;">(${variance < 0.2 ? 'Low' : variance < 0.5 ? 'Medium' : 'High'} variance)</span>
@@ -617,8 +645,11 @@ class AppController {
         </div>
       `;
       uncertaintyDetails.innerHTML = `
-        <p style="margin: 0; font-size: 0.75rem;">Fast diagnosis without uncertainty metrics.</p>
-        <p style="margin: 0.25rem 0 0; font-size: 0.7rem; color: var(--outline);">Enable "Accurate Mode" for uncertainty analysis.</p>
+        <div style="margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(193,198,212,0.15);">
+          <strong>Confidence Context:</strong> ${this.sanitizeEscape(data.confidence_explanation || "Computed without variance estimation in Quick Mode.")}
+        </div>
+        <p style="margin: 0; font-size: 0.75rem;">Fast diagnosis without structural uncertainty metrics.</p>
+        <p style="margin: 0.25rem 0 0; font-size: 0.7rem; color: var(--outline);">Enable "Accurate Mode" for full confidence calibration.</p>
       `;
     }
     
@@ -661,7 +692,10 @@ class AppController {
     if (reasoningEl) {
       const reasoningElInner = reasoningEl.querySelector('.empty-state') || reasoningEl;
       if (data.clinical_reasoning) {
-        reasoningEl.innerHTML = `<div style="font-size: 0.875rem; line-height: 1.6;">${this.sanitizeEscape(data.clinical_reasoning).replace(/\n/g, '<br>')}</div>`;
+        const trustLine = data._decision_support_note
+          ? `<div style="margin-bottom:0.6rem;font-size:0.75rem;color:var(--on-surface-variant);">${this.sanitizeEscape(data._decision_support_note)}</div>`
+          : '';
+        reasoningEl.innerHTML = `${trustLine}<div class="clinical-reasoning-body">${this.sanitizeEscape(data.clinical_reasoning).replace(/\n/g, '<br>')}</div>`;
       } else {
         reasoningEl.innerHTML = '<p style="color: var(--on-surface-variant);">No clinical reasoning available.</p>';
       }
@@ -745,7 +779,22 @@ class AppController {
     // Format and display SOAP
     if (soapNote) {
       const formatSOAP = (s) => {
-        let html = '';
+        let html = `
+          <div class="soap-container">
+            <div class="soap-emr-header">
+              <div class="soap-emr-hospital">DermaCare Integrated EHR</div>
+              <div class="soap-emr-subheader">Clinical encounter note • Decision support document</div>
+            </div>
+            
+            <div class="soap-patient-chart">
+              <div class="chart-cell"><strong>Case ID</strong> <span>${this.sanitizeEscape(this.currentCasePayload?.case_id || 'N/A')}</span></div>
+              <div class="chart-cell"><strong>Encounter Date</strong> <span>${this.currentCasePayload?.timestamp ? new Date(this.currentCasePayload.timestamp).toLocaleDateString() : new Date().toLocaleDateString()}</span></div>
+              <div class="chart-cell"><strong>Patient Age</strong> <span>${this.currentCasePayload?.patient_age || 'N/A'} years</span></div>
+              <div class="chart-cell"><strong>Geographic Region</strong> <span>${this.sanitizeEscape(this.currentCasePayload?.geographic_region || 'N/A')}</span></div>
+              <div class="chart-cell"><strong>Skin Phototype</strong> <span>Type ${this.sanitizeEscape(this.currentCasePayload?.skin_phototype || 'N/A')}</span></div>
+              <div class="chart-cell"><strong>Provider ID</strong> <span>${this.sanitizeEscape(this.currentCasePayload?.user_id || 'anonymous')}</span></div>
+            </div>
+        `;
         
         // Handle different SOAP formats
         const subjective = s?.S || s?.SUBJECTIVE || s?.s || s?.subjective || '';
@@ -754,17 +803,27 @@ class AppController {
         const plan = s?.P || s?.PLAN || s?.p || s?.plan || '';
         
         if (subjective || objective || assessment || plan) {
-          if (subjective) html += `<div class="soap-section"><div class="soap-label S"><span>S</span>SUBJECTIVE</div><div class="soap-text">${this.sanitizeEscape(subjective).replace(/\n/g, '<br>')}</div></div>`;
-          if (objective) html += `<div class="soap-section"><div class="soap-label O"><span>O</span>OBJECTIVE</div><div class="soap-text">${this.sanitizeEscape(objective).replace(/\n/g, '<br>')}</div></div>`;
-          if (assessment) html += `<div class="soap-section"><div class="soap-label A"><span>A</span>ASSESSMENT</div><div class="soap-text">${this.sanitizeEscape(assessment).replace(/\n/g, '<br>')}</div></div>`;
-          if (plan) html += `<div class="soap-section"><div class="soap-label P"><span>P</span>PLAN</div><div class="soap-text">${this.sanitizeEscape(plan).replace(/\n/g, '<br>')}</div></div>`;
+          if (subjective) html += `<div class="soap-section"><div class="soap-label">S - SUBJECTIVE HISTORY</div><div class="soap-text">${this.sanitizeEscape(subjective).replace(/\n/g, '<br>')}</div></div>`;
+          if (objective) html += `<div class="soap-section"><div class="soap-label">O - OBJECTIVE MORPHOLOGY</div><div class="soap-text">${this.sanitizeEscape(objective).replace(/\n/g, '<br>')}</div></div>`;
+          if (assessment) html += `<div class="soap-section"><div class="soap-label">A - CLINICAL ASSESSMENT</div><div class="soap-text">${this.sanitizeEscape(assessment).replace(/\n/g, '<br>')}</div></div>`;
+          if (plan) html += `<div class="soap-section"><div class="soap-label">P - DETERMINISTIC CARE PLAN</div><div class="soap-text">${this.sanitizeEscape(plan).replace(/\n/g, '<br>')}</div></div>`;
         } else if (typeof s === 'string') {
           // Plain text format
-          html = `<pre style="white-space: pre-wrap; font-size: 0.875rem; line-height: 1.6;">${this.sanitizeEscape(s)}</pre>`;
+          html += `<pre style="white-space: pre-wrap; font-family: 'Inter', sans-serif; font-size: 0.95rem; line-height: 1.6; padding: 0.5rem; border-left: 3px solid #d1d5db;">${this.sanitizeEscape(s)}</pre>`;
         } else {
-          html = '<p>Unable to parse SOAP note format.</p>';
+          html += '<p style="padding: 0.5rem;">Unable to parse SOAP note format.</p>';
         }
         
+        html += `
+            <div class="soap-signoff">
+              <div class="signoff-row">
+                <div class="signoff-signature">Electronically Signed By: DermaCare Clinical Decision Support System</div>
+                <div class="signoff-date">${new Date().toLocaleString()}</div>
+              </div>
+              <div class="signoff-note">Verified Decision Support Output • Authentic EHR Documentation</div>
+            </div>
+          </div>
+        `;
         return html;
       };
       
@@ -904,6 +963,152 @@ class AppController {
         <div class="history-complaint">${this.sanitizeEscape(c.complaint?.substring(0, 60) || '')}</div>
       </div>
     `).join('');
+  }
+
+  async checkDrugInteractions() {
+    const inputEl = document.getElementById('drug-input');
+    const resultContainer = document.getElementById('drug-result-container');
+    const btn = document.getElementById('check-drug-btn');
+    if (!inputEl || !resultContainer || !btn) {
+      this.showToast('Drug checker UI not initialized', 'error');
+      return;
+    }
+
+    const drugs = String(inputEl.value || '')
+      .split(',')
+      .map((d) => d.trim())
+      .filter(Boolean);
+
+    if (drugs.length === 0) {
+      this.showToast('Please enter at least one medication', 'warning');
+      resultContainer.classList.add('hidden');
+      resultContainer.innerHTML = '';
+      return;
+    }
+
+    btn.disabled = true;
+    const old = btn.innerHTML;
+    btn.innerHTML = 'Analyzing...';
+    resultContainer.classList.remove('hidden');
+    resultContainer.innerHTML = `
+      <div class="card">
+        <div class="empty-state">
+          <span class="material-icons" style="font-size: 2rem; color: var(--outline-variant);">hourglass_top</span>
+          <p>Running interaction analysis...</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      const apiBase = window.auth?.getApiBase() || 'http://127.0.0.1:8000';
+      const res = await window.auth.authenticatedFetch(`${apiBase}/check-interactions`, {
+        method: 'POST',
+        body: { drugs },
+      });
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const err = await res.json();
+          detail = err.detail || detail;
+        } catch (_) {}
+        throw new Error(detail);
+      }
+      const data = await res.json();
+      this.currentDrugAnalysis = data?.analysis || '';
+      this.renderDrugInteractionResult(data);
+      this.showToast('Interaction analysis complete', 'success');
+    } catch (e) {
+      resultContainer.innerHTML = `
+        <div class="card">
+          <div class="empty-state">
+            <span class="material-icons" style="font-size: 2rem; color: var(--error);">error</span>
+            <p>Drug analysis failed: ${this.sanitizeEscape(e.message || 'Unknown error')}</p>
+          </div>
+        </div>
+      `;
+      this.showToast(`Drug analysis failed: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = old;
+    }
+  }
+
+  renderDrugInteractionResult(payload) {
+    const resultContainer = document.getElementById('drug-result-container');
+    if (!resultContainer) return;
+    const raw = payload?.analysis;
+    let parsed = null;
+    if (typeof raw === 'string') {
+      const t = raw.trim();
+      if (t.startsWith('{') || t.startsWith('[')) {
+        try {
+          parsed = JSON.parse(t);
+        } catch (_) {
+          parsed = null;
+        }
+      }
+    } else if (raw && typeof raw === 'object') {
+      parsed = raw;
+    }
+
+    if (!parsed) {
+      resultContainer.innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title"><span class="material-icons">medication</span>Interaction Analysis</h3>
+          </div>
+          <div style="font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;">
+            ${this.sanitizeEscape(String(raw || 'No analysis returned'))}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const summary = parsed.summary || parsed.overview || 'No summary available';
+    const major = Array.isArray(parsed.major_interactions) ? parsed.major_interactions : [];
+    const moderate = Array.isArray(parsed.moderate_minor_interactions) ? parsed.moderate_minor_interactions : [];
+    const guidance = Array.isArray(parsed.clinical_guidance)
+      ? parsed.clinical_guidance
+      : Array.isArray(parsed.guidance)
+      ? parsed.guidance
+      : [];
+    const severity = parsed.severity || parsed.risk_level || 'Not specified';
+
+    const majorHtml = major.length
+      ? `<ul>${major.map((x) => `<li>${this.sanitizeEscape(typeof x === 'string' ? x : JSON.stringify(x))}</li>`).join('')}</ul>`
+      : '<p>None identified</p>';
+
+    const moderateHtml = moderate.length
+      ? `<ul>${moderate
+          .map((x) => {
+            if (typeof x === 'string') return `<li>${this.sanitizeEscape(x)}</li>`;
+            const m1 = this.sanitizeEscape(x.medication1 || 'Unknown');
+            const m2 = this.sanitizeEscape(x.medication2 || 'Unknown');
+            const d = this.sanitizeEscape(x.description || 'No description');
+            return `<li><strong>${m1}</strong> + <strong>${m2}</strong>: ${d}</li>`;
+          })
+          .join('')}</ul>`
+      : '<p>None identified</p>';
+
+    const guidanceHtml = guidance.length
+      ? `<ul>${guidance.map((x) => `<li>${this.sanitizeEscape(String(x))}</li>`).join('')}</ul>`
+      : '<p>No specific guidance provided</p>';
+
+    resultContainer.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title"><span class="material-icons">medication</span>Interaction Analysis</h3>
+        </div>
+        <div style="display:grid; gap:1rem;">
+          <div><strong>Severity/Risk:</strong> ${this.sanitizeEscape(String(severity))}</div>
+          <div><strong>Summary:</strong><br>${this.sanitizeEscape(String(summary))}</div>
+          <div><strong>Major Interactions</strong>${majorHtml}</div>
+          <div><strong>Moderate/Minor Interactions</strong>${moderateHtml}</div>
+          <div><strong>Clinical Guidance</strong>${guidanceHtml}</div>
+        </div>
+      </div>
+    `;
   }
   
   loadCase(caseId) {

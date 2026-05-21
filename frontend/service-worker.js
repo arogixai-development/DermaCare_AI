@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dermacare-v2';
+const CACHE_NAME = 'dermacare-v3';
 
 // We must carefully cache the exact paths the browser will request
 const ASSETS_TO_CACHE = [

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 from pydantic import BaseModel
 from typing import Optional
 from backend.database.db_postgres import get_db, engine, Base
@@ -11,6 +12,46 @@ try:
     Base.metadata.create_all(bind=engine)
 except Exception:
     pass
+
+
+def _ensure_case_schema_compatibility() -> None:
+    """
+    Backfill required case columns for existing databases without migrations.
+    Fixes older SQLite/PostgreSQL databases missing case_records.user_id.
+    """
+    try:
+        inspector = inspect(engine)
+        if "case_records" not in inspector.get_table_names():
+            return
+
+        column_names = {col["name"] for col in inspector.get_columns("case_records")}
+        if "user_id" in column_names:
+            return
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE case_records "
+                    "ADD COLUMN user_id VARCHAR(100) NOT NULL DEFAULT 'anonymous'"
+                )
+            )
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_case_records_user_id "
+                        "ON case_records (user_id)"
+                    )
+                )
+        except Exception:
+            # Index creation can fail on some SQLite variants; non-fatal.
+            pass
+    except Exception:
+        # Keep route import resilient; runtime DB errors are surfaced by handlers.
+        pass
+
+
+_ensure_case_schema_compatibility()
 
 router = APIRouter()
 

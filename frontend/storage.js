@@ -124,12 +124,21 @@ async function deleteCase(caseId) {
 
 // 5. Get Backend URL from settings
 function getBackendUrl() {
-    return localStorage.getItem('dermacare-backend-url') || 'http://127.0.0.1:8000';
+    return (
+        localStorage.getItem('dermacare_backend_url') ||
+        localStorage.getItem('dermacare-backend-url') ||
+        'http://127.0.0.1:8000'
+    );
 }
 
 // 6. Get Auth Token
 function getAuthToken() {
-    return localStorage.getItem('auth-token');
+    return (
+        localStorage.getItem('dermacare_access_token') ||
+        localStorage.getItem('auth-token') ||
+        window.auth?.accessToken ||
+        null
+    );
 }
 
 // 7. Sync single case to backend
@@ -141,7 +150,7 @@ async function syncCaseToBackend(caseData) {
     }
 
     try {
-        const response = await fetch(`${getBackendUrl()}/api/cases`, {
+        const response = await fetch(`${getBackendUrl()}/cases`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -170,7 +179,7 @@ async function fetchCasesFromBackend() {
     }
 
     try {
-        const response = await fetch(`${getBackendUrl()}/api/cases`, {
+        const response = await fetch(`${getBackendUrl()}/cases`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -267,7 +276,7 @@ async function deleteCaseFromBackend(caseId) {
     }
 
     try {
-        const response = await fetch(`${getBackendUrl()}/api/cases/${caseId}`, {
+        const response = await fetch(`${getBackendUrl()}/cases/${caseId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`

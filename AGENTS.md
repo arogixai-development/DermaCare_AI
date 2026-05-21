@@ -193,6 +193,13 @@ OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=phi3
 ```
 
+Diagnosis quality / reliability (see `.env.example` for defaults):
+
+- `QUICK_RETRY_LIMIT` — Quick mode JSON repair attempts after a bad parse (default `1`).
+- `ACCURATE_MODE_MAX_TOKENS` / `ACCURATE_TIME_BUDGET_SECONDS` — Accurate mode depth vs latency (~60s target).
+- `LOW_CONFIDENCE_ESCALATION_THRESHOLD` — When to attach escalation messaging (default `0.40`).
+- `QUICK_ALLOW_GROQ_FALLBACK` — If `false`, Quick mode does not call Groq on parse failure (only Accurate / Ollama-down paths use Groq per caps).
+
 ## Notes for AI Agents
 
 1. **No npm/Node.js**: Frontend is pure vanilla JS, no build tools

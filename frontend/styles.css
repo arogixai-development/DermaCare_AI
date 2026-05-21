@@ -1348,45 +1348,161 @@ body {
   flex-shrink: 0;
 }
 
-/* SOAP Labels */
-.soap-label {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
+/* EMR Style SOAP Document */
+.soap-container {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-top: 5px solid #005dac;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  padding: 2.5rem 3rem;
+  font-family: 'Inter', 'IBM Plex Sans', 'Segoe UI', -apple-system, sans-serif;
+  color: #1f2937;
+  max-width: 900px;
+  margin: 0 auto;
+  border-radius: 4px;
+}
+
+.soap-emr-header {
+  border-bottom: 2px solid #005dac;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.soap-emr-hospital {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #005dac;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.soap-emr-subheader {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
   letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 0.25rem;
+}
+
+.soap-patient-chart {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1.5rem;
+  font-size: 0.85rem;
+}
+
+.chart-cell {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed #e5e7eb;
+  padding-bottom: 0.25rem;
+  align-items: center;
+}
+
+.chart-cell:last-child, .chart-cell:nth-last-child(2) {
+  border-bottom: none;
+}
+
+.chart-cell strong {
+  color: #4b5563;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.chart-cell span {
+  color: #111827;
+  font-weight: 600;
+}
+
+.soap-header-meta {
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.soap-section {
+  margin-bottom: 1.75rem;
+  page-break-inside: avoid;
+}
+
+.soap-label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.75rem;
 }
 
 .soap-label span {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  color: white;
+  display: none;
 }
 
-.soap-label.S span { background: #8b5cf6; }
-.soap-label.O span { background: #0891b2; }
-.soap-label.A span { background: #059669; }
-.soap-label.P span { background: #dc2626; }
-
-.soap-label.S { color: #8b5cf6; }
-.soap-label.O { color: #0891b2; }
-.soap-label.A { color: #059669; }
-.soap-label.P { color: #dc2626; }
-
 .soap-text {
-  font-size: 0.9375rem;
-  color: var(--on-surface);
-  line-height: 1.7;
-  background: var(--surface-container-low);
-  padding: 1rem 1.25rem;
-  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.6;
+  background: transparent;
+  padding: 0 0 0 1rem;
+  border-radius: 0;
+  border-left: 3px solid #d1d5db;
+}
+
+.soap-text ul, .soap-text ol {
+  padding-left: 1.25rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.soap-signoff {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e5e7eb;
+  font-size: 0.8rem;
+}
+
+.signoff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.signoff-signature {
+  font-weight: 700;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.signoff-date {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.signoff-note {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Text Utilities */
@@ -2287,4 +2403,12 @@ section.screen.active {
 
 .toggle-switch input:focus + .toggle-slider {
   box-shadow: 0 0 0 2px var(--primary-container);
+}
+
+/* Clinical reasoning from API: multi-line / paragraph-friendly */
+#clinical-reasoning .clinical-reasoning-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

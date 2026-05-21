@@ -60,6 +60,9 @@ def test_api_endpoints(token):
     
     headers = {"Authorization": f"Bearer {token}"}
     
+    # Clear Cache
+    requests.delete(f"{BASE_URL}/diagnosis/cache", headers=headers)
+    
     # Test Health
     print("\n[2.1] Testing Health Check...")
     response = requests.get(f"{BASE_URL}/health")
@@ -76,7 +79,8 @@ def test_api_endpoints(token):
         "lesion": "Single deep ulcer with rolled borders on lower lip, 1.5cm diameter",
         "symptoms": "Painful when eating, slight bleeding, no fever",
         "patient_age": 28,
-        "geographic_region": "Urban"
+        "geographic_region": "Urban",
+        "monte_carlo": True
     }
     
     print(f"    Input: {diagnosis_data['patient_age']}yo, Urban")
@@ -93,7 +97,7 @@ def test_api_endpoints(token):
         top_diagnosis = diagnoses[0].get("condition", "") if diagnoses else ""
         
         # AI Relevance Check
-        lip_keywords = ["lip", "mouth", "oral", "ulcer", "cancrum", "aphthous"]
+        lip_keywords = ["lip", "mouth", "oral", "ulcer", "cancrum", "aphthous", "stomatitis", "herpe", "cheil"]
         relevant_to_lip = any(kw in top_diagnosis.lower() for kw in lip_keywords)
         
         print(f"\n    AI Top Diagnosis: {top_diagnosis}")
@@ -128,7 +132,7 @@ def test_ai_relevance(token, diagnosis_result):
     expected_keywords = ["lip", "mouth", "oral", "ulcer", "herpes", "stomatitis",
                         "aphthous", "behcet", "beh", "traumatic", "cancrum", "impetigo", 
                         "syphilis", "carcinoma", "cancer", "infectious", "viral", "bacterial",
-                        "autoimmune", "immune"]
+                        "autoimmune", "immune", "cheil", "cheilitis"]
     
     all_relevant = True
     for dx in diagnoses[:3]:

@@ -5,12 +5,15 @@ from typing import Optional, List
 from backend.services.diagnosis_service import (
     generate_diagnosis, 
     generate_diagnosis_async,
+    generate_diagnosis_v2_strict,
     get_last_diagnosis,
     clear_cache,
-    get_cache_stats
+    get_cache_stats,
+    sanitize_v1_diagnosis_response,
 )
-from backend.ai_engine.ollama_client import check_ollama_connection, OllamaConnectionError
+from backend.ai_engine.ollama_client import check_ollama_connection
 from backend.auth.middleware import require_auth
+from backend.config import get_reliability_config, get_model_name
 import json
 
 router = APIRouter()
@@ -28,50 +31,85 @@ class DiagnosisRequest(BaseModel):
     history_duration: Optional[str] = Field(default=None, max_length=100)
     change_pattern: Optional[str] = Field(default=None, max_length=200)
     previous_biopsies: Optional[str] = Field(default=None, max_length=500)
+    sex: Optional[str] = Field(default=None, max_length=50)
+    occupation: Optional[str] = Field(default=None, max_length=120)
+    medical_history: Optional[str] = Field(default=None, max_length=2000)
+    retrieved_context: Optional[List[str]] = Field(default=None, max_length=10)
     
     image_data: Optional[str] = Field(default=None, max_length=5000000)
-    monte_carlo: bool = Field(default=True, description="Enable Monte Carlo uncertainty estimation")
+    monte_carlo: bool = Field(default=False, description="Enable Accurate mode uncertainty estimation")
     
     @field_validator('complaint', 'lesion')
     @classmethod
     def strip_whitespace(cls, v):
         return v.strip() if isinstance(v, str) else v
 
+def _format_diagnosis_response(data: dict, api_version: str) -> dict:
+    if api_version == "v2":
+        return {
+            "diagnosis": data.get("diagnosis", []),
+            "confidence": data.get("confidence", 0.0),
+            "reasoning": data.get("reasoning", ""),
+            "recommended_tests": data.get("recommended_tests", []),
+            "treatment_plan": data.get("treatment_plan", []),
+            "triage": data.get("triage", ""),
+            "response_type": data.get("response_type", "fallback"),
+            "fallback_reason": data.get("fallback_reason"),
+            "parse_error_type": data.get("parse_error_type"),
+            "recovery_stage": data.get("recovery_stage"),
+            "cost_estimate": data.get("cost_estimate", {}),
+            "escalation_instruction": data.get("escalation_instruction"),
+        }
+    return data
+
+
 @router.post("/diagnosis")
-def diagnosis(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
+def diagnosis(req: DiagnosisRequest, request: Request, payload: dict = Depends(require_auth)):
     """Production-ready diagnosis endpoint with Gated Multimodal Architecture"""
     try:
-        status = check_ollama_connection()
-        if not status["connected"]:
-            raise HTTPException(
-                status_code=503,
-                detail=f"AI Backend Offline: {status['error']}"
-            )
-        
         req_data = req.model_dump()
-        use_mc = req_data.pop('monte_carlo', True)
+        use_mc = req_data.pop('monte_carlo', False)
         result = generate_diagnosis(req_data, use_monte_carlo=use_mc)
-        return result
+        if isinstance(result, dict) and "error" not in result:
+            result = sanitize_v1_diagnosis_response(result)
+        reliability = get_reliability_config()
+        api_version = request.headers.get("X-API-Version", reliability.get("api_default_version", "v1")).lower()
+        return _format_diagnosis_response(result, api_version)
     except HTTPException:
         raise
-    except OllamaConnectionError as e:
-        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Diagnosis generation failed: {str(e)}")
 
 @router.post("/diagnosis/async")
-async def diagnosis_async(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
+async def diagnosis_async(req: DiagnosisRequest, request: Request, payload: dict = Depends(require_auth)):
     """Async diagnosis endpoint"""
     try:
         req_data = req.model_dump()
-        use_mc = req_data.pop('monte_carlo', True)
+        use_mc = req_data.pop('monte_carlo', False)
         result = await generate_diagnosis_async(req_data, use_monte_carlo=use_mc)
-        return result
+        if isinstance(result, dict) and "error" not in result:
+            result = sanitize_v1_diagnosis_response(result)
+        reliability = get_reliability_config()
+        api_version = request.headers.get("X-API-Version", reliability.get("api_default_version", "v1")).lower()
+        return _format_diagnosis_response(result, api_version)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Async diagnosis generation failed: {str(e)}")
 
+
+@router.post("/diagnosis/v2")
+def diagnosis_v2(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
+    """Strict v2 clinical decision-support endpoint."""
+    try:
+        req_data = req.model_dump()
+        result = generate_diagnosis_v2_strict(req_data)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Diagnosis v2 generation failed: {str(e)}")
+
 @router.post("/diagnosis/stream")
-async def diagnosis_stream(req: DiagnosisRequest, payload: dict = Depends(require_auth)):
+async def diagnosis_stream(req: DiagnosisRequest, request: Request, payload: dict = Depends(require_auth)):
     """
     Streaming diagnosis endpoint.
     Note: Streaming is not fully implemented - returns standard response.
@@ -79,9 +117,13 @@ async def diagnosis_stream(req: DiagnosisRequest, payload: dict = Depends(requir
     """
     try:
         req_data = req.model_dump()
-        use_mc = req_data.pop('monte_carlo', True)
+        use_mc = req_data.pop('monte_carlo', False)
         result = generate_diagnosis(req_data, use_monte_carlo=use_mc)
-        return result
+        if isinstance(result, dict) and "error" not in result:
+            result = sanitize_v1_diagnosis_response(result)
+        reliability = get_reliability_config()
+        api_version = request.headers.get("X-API-Version", reliability.get("api_default_version", "v1")).lower()
+        return _format_diagnosis_response(result, api_version)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Diagnosis streaming failed: {str(e)}")
 
@@ -103,9 +145,10 @@ def get_diagnosis_stats():
         "system": "DermaCare AI - Glass Box Edition",
         "architecture": "Gated Multimodal Architecture (GMU)",
         "performance_goals": {
-            "diagnosis_time": "<30 seconds",
+            "quick_mode_time": "<=25 seconds (target)",
+            "accurate_mode_time": "<=60 seconds (target)",
             "soap_time": "<5 seconds",
-            "model_used": "llama3.1",
+            "model_used": get_model_name(),
             "optimization": "production"
         },
         "glass_box_features": {
@@ -115,7 +158,7 @@ def get_diagnosis_stats():
             },
             "monte_carlo_dropout": {
                 "enabled": True,
-                "iterations": 5,
+                "iterations": 3,
                 "description": "Multiple inferences for uncertainty estimation"
             },
             "adversarial_safety": {

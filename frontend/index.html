@@ -1053,7 +1053,15 @@
   <script src="app.js"></script>
 
   <script>
-    document.getElementById('header-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const headerDate = document.getElementById('header-date');
+    if (headerDate) {
+      headerDate.innerText = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
   </script>
 </body>
 

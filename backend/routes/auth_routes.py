@@ -6,6 +6,7 @@ With rate limiting and brute force protection.
 """
 from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, timezone
@@ -31,7 +32,43 @@ from backend.auth.rate_limiter import (
 
 logger = logging.getLogger("DermaCare_AI.auth")
 
+
+def _ensure_user_schema_compatibility() -> None:
+    """
+    Backfill required auth columns for existing databases without migrations.
+    Fixes older SQLite/PostgreSQL databases missing users.token_version.
+    """
+    try:
+        inspector = inspect(engine)
+        if "users" not in inspector.get_table_names():
+            return
+
+        column_names = {col["name"] for col in inspector.get_columns("users")}
+        if "token_version" in column_names:
+            return
+
+        with engine.begin() as conn:
+            if DB_IS_POSTGRES:
+                conn.execute(
+                    text(
+                        "ALTER TABLE users "
+                        "ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1"
+                    )
+                )
+            else:
+                conn.execute(
+                    text(
+                        "ALTER TABLE users "
+                        "ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1"
+                    )
+                )
+        logger.info("Applied schema compatibility fix: users.token_version")
+    except Exception as exc:
+        logger.warning("Schema compatibility check failed: %s", exc)
+
+
 Base.metadata.create_all(bind=engine)
+_ensure_user_schema_compatibility()
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -142,26 +179,28 @@ async def login(request: Request, credentials: LoginRequest, response: Response,
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh_token(request: Request, response: Response, db: Session = Depends(get_db)):
-    """Refresh access token using refresh token from cookie. Implements token rotation for security."""
-    refresh_token = request.cookies.get("refresh_token")
-    
-    if not refresh_token:
+def refresh_token(payload: Optional[RefreshRequest] = None, request: Request = None, response: Response = None, db: Session = Depends(get_db)):
+    """Refresh access token using refresh token from secure cookie or request body."""
+    token = request.cookies.get("refresh_token") if request else None
+    if not token and payload:
+        token = payload.refresh_token
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token missing"
         )
-    
-    payload = verify_token(refresh_token, token_type="refresh")
-    
-    if not payload:
+
+    verified_payload = verify_token(token, token_type="refresh")
+
+    if not verified_payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token"
         )
-    
-    username = payload.get("sub")
-    token_version_from_payload = payload.get("token_version", 1)
+
+    username = verified_payload.get("sub")
+    token_version_from_payload = verified_payload.get("token_version", 1)
     
     user = db.query(User).filter(User.username == username).first()
     
@@ -261,7 +300,8 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     return UserResponse(
         username=user.username,
         email=user.email,
-        is_admin=user.is_admin
+        is_admin=user.is_admin,
+        user_id=user.id,
     )
 
 

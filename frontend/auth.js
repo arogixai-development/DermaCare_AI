@@ -11,7 +11,7 @@ class AuthManager {
     this.refreshTimer = null;
     this.isAuthenticated = false;
     this.user = null;
-    this.API_BASE = this._getStoredApiBase() || 'https://dermacare-ai-f3rr.onrender.com';
+    this.API_BASE = this._getStoredApiBase() || 'http://127.0.0.1:8000';
     this.initFromStorage();
   }
 
@@ -77,13 +77,31 @@ class AuthManager {
    * Login with username/password
    */
   async login(username, password) {
+    const candidates = [this.API_BASE, 'http://127.0.0.1:8000', 'http://localhost:8000']
+      .filter((v, i, a) => v && a.indexOf(v) === i);
+
     try {
-      const response = await fetch(`${this.API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password })
-      });
+      let response = null;
+      let lastNetworkError = null;
+      for (const base of candidates) {
+        try {
+          response = await fetch(`${base}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ username, password })
+          });
+          this.API_BASE = base;
+          localStorage.setItem('dermacare_backend_url', base);
+          break;
+        } catch (err) {
+          lastNetworkError = err;
+        }
+      }
+
+      if (!response) {
+        throw new Error(lastNetworkError?.message || 'Failed to fetch');
+      }
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));

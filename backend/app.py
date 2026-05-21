@@ -5,6 +5,7 @@ Secure, local-only medical AI application for dermatology diagnosis.
 """
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -14,6 +15,36 @@ if env_path.exists():
     print(f"[CONFIG] Loaded environment from {env_path}")
 else:
     print("[WARNING] No .env file found. Using default configuration.")
+
+
+def _normalize_ollama_host_env() -> None:
+    """
+    Sync OLLAMA_HOST for the ollama Python client (reads OLLAMA_HOST).
+
+    - If OLLAMA_HOST is already set and valid, leave it.
+    - If OLLAMA_BASE_URL is a full URL (http/https), use it as OLLAMA_HOST so
+      HTTPS Cloudflare Tunnel hosts use port 443, not 11434.
+    - Otherwise derive host:port for local dev (default port 11434).
+    """
+    raw_host = os.getenv("OLLAMA_HOST", "").strip()
+    if raw_host and raw_host not in {"0.0.0.0", "http://0.0.0.0", "https://0.0.0.0"}:
+        return
+
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip()
+    if not base_url:
+        base_url = "http://127.0.0.1:11434"
+
+    if "://" in base_url:
+        os.environ["OLLAMA_HOST"] = base_url.rstrip("/")
+        return
+
+    parsed = urlparse(f"http://{base_url}")
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 11434
+    os.environ["OLLAMA_HOST"] = f"{host}:{port}"
+
+
+_normalize_ollama_host_env()
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -113,6 +144,7 @@ def health_check():
     from backend.ai_engine.ollama_client import check_ollama_connection
     from backend.config import get_model_name
     from backend.database.db_postgres import is_db_postgres, get_db_info
+    from backend.services.diagnosis_service import get_runtime_metrics
     
     status = check_ollama_connection()
     
@@ -125,6 +157,7 @@ def health_check():
         "ollama_error": status.get("error"),
         "database_type": db_info.get("type", "unknown"),
         "database_host": db_info.get("host", "N/A"),
+        "diagnosis_runtime": get_runtime_metrics(),
         "version": "1.0.0",
         "security": "JWT Authentication Required"
     }
@@ -135,12 +168,14 @@ def get_metrics():
     """Basic performance metrics endpoint"""
     import psutil
     import os
+    from backend.services.diagnosis_service import get_runtime_metrics
     
     return {
         "cpu_usage": psutil.cpu_percent(interval=0.1),
         "memory_usage": psutil.virtual_memory().percent,
         "disk_usage": psutil.disk_usage('/').percent if os.name != 'nt' else psutil.disk_usage('C:').percent,
         "process_id": os.getpid(),
+        "diagnosis_runtime": get_runtime_metrics(),
     }
 
 # Error handling
