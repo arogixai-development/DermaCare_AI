@@ -1,6 +1,6 @@
 # DermaCare AI 🩺
-
-[![Offline First](https://img.shields.io/badge/Offline-First-blue.svg)](https://github.com/Ragulpriyan-Coder/DermaCare_AI)
+https://v0-dermacareai.vercel.app/
+[![Offline First](https://img.shields.io/badge/Offline-First-blue.svg)]([https://github.com/Ragulpriyan-Coder/DermaCare_AI](https://github.com/arogixai-development/DermaCare_AI))
 [![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688.svg)](https://fastapi.tiangolo.com/)
 [![Ollama](https://img.shields.io/badge/AI-Ollama%20(phi3)-orange.svg)](https://ollama.ai/)
