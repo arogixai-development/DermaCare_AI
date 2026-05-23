@@ -4,18 +4,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DermaCare AI - Clinical Decision Support</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>DermaCare AI - Secure Sign-In</title>
+  
+  <script>
+    window.FORCE_LOGIN = true;
+  </script>
+  
+  <link rel="stylesheet" href="frontend/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="frontend/manifest.json">
   <meta name="theme-color" content="#005dac">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 
 <body>
-  <!-- LOGIN SCREEN -->
-  <div id="login-screen" class="login-screen" style="display: none;">
+  <!-- LOGIN SCREEN (Visible by default in manual login path) -->
+  <div id="login-screen" class="login-screen">
     <div class="login-container">
       <div class="login-brand">
         <div class="login-logo">
@@ -812,227 +817,133 @@
 
         <!-- SCREEN: Case History -->
         <section id="screen-history" class="screen hidden">
-          <div class="screen-title">
-            <h1>Clinical Case History</h1>
-            <p>Manage and review longitudinal dermatological data and AI-assisted diagnostic reports.</p>
-          </div>
-
-          <div style="display: flex; justify-content: flex-end; margin-bottom: 2rem;">
-            <button class="btn btn-primary" data-action="start-diagnosis">
-              <span class="material-icons">add</span>
-              Start New Diagnosis
-            </button>
-          </div>
-
-          <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-            <div style="flex: 1;">
-              <input type="text" id="history-search" class="form-input" placeholder="Search case archives...">
+          <div class="screen-title" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h1>Case History Archive</h1>
+              <p>Review completed case files and AI diagnostic logs</p>
+            </div>
+            <div class="search-box">
+              <span class="material-icons">search</span>
+              <input type="text" id="history-search" class="form-input" placeholder="Search by complaint or diagnosis...">
             </div>
           </div>
 
-          <div id="history-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+          <div class="history-list" id="history-list">
             <!-- Populated by JS -->
-          </div>
-
-          <div style="text-align: center; margin-top: 3rem; color: var(--on-surface-variant);">
-            <p id="history-count">Showing 0 clinical cases</p>
           </div>
         </section>
 
-        <!-- SCREEN: Drug Checker -->
+        <!-- SCREEN: Drug Interaction Checker -->
         <section id="screen-drug-checker" class="screen hidden">
           <div class="screen-title">
-            <h1>Drug Interaction Analysis</h1>
-            <p>Cross-reference multiple topical and systemic medications for contraindications.</p>
+            <h1>Drug Interaction Checker</h1>
+            <p>Perform clinical interaction mapping for proposed drug therapies</p>
           </div>
 
-          <div class="card">
-            <div class="form-group">
-              <label class="form-label">Input Medications (Comma Separated)</label>
-              <textarea id="drug-input" class="form-textarea" rows="4" placeholder="e.g., Clotrimazole, Hydrocortisone, Lithium..."></textarea>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-              <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--on-surface-variant); font-size: 0.75rem;">
-                <span class="material-icons">info</span>
-                Supports 50,000+ FDA-approved formulations.
+          <div class="diagnosis-grid">
+            <!-- Left Side: Interaction Inputs -->
+            <div>
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <span class="material-icons">medication</span>
+                    Therapy Verification
+                  </h3>
+                </div>
+                <form id="drug-checker-form">
+                  <div class="form-group">
+                    <label class="form-label">Primary Proposed Drug</label>
+                    <input type="text" id="drug-primary" class="form-input" placeholder="e.g. Triamcinolone, Hydrocortisone" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Secondary Drug / Existing Medication</label>
+                    <input type="text" id="drug-secondary" class="form-input" placeholder="e.g. Itraconazole, Ketoconazole" required>
+                  </div>
+                  <button type="button" class="btn btn-primary btn-full" data-action="check-drugs">
+                    <span class="material-icons">shield</span>
+                    Run Contraindication Scan
+                  </button>
+                </form>
               </div>
-              <button class="btn btn-primary" id="check-drug-btn" data-action="check-drugs">
-                Analyze Combinations
-                <span class="material-icons filled">auto_awesome</span>
-              </button>
             </div>
-          </div>
 
-          <div id="drug-result-container" class="hidden" style="margin-top: 2rem;">
-            <!-- Populated by JS -->
-          </div>
-
-          <div style="margin-top: 2rem;">
-            <button class="btn btn-secondary" data-action="go-dashboard">
-              <span class="material-icons">arrow_back</span>
-              Back to Dashboard
-            </button>
+            <!-- Right Side: Interaction Results -->
+            <div>
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <span class="material-icons">lock</span>
+                    Safety Analysis Report
+                  </h3>
+                </div>
+                <div id="drug-checker-results">
+                  <div class="empty-state">
+                    <span class="material-icons" style="font-size: 2.5rem; color: var(--outline-variant);">healing</span>
+                    <p>Enter primary and secondary medications to run interaction verification.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         <!-- SCREEN: Settings -->
         <section id="screen-settings" class="screen hidden">
           <div class="screen-title">
-            <h1>System Configuration</h1>
-            <p>Manage clinical AI parameters, security protocols, and visual preferences.</p>
+            <h1>Application Settings</h1>
+            <p>Manage application configuration, offline caches, and database options</p>
           </div>
 
-          <div class="settings-grid">
-            <!-- AI Model Config -->
-            <div class="settings-section">
-              <div class="settings-section-header">
-                <div class="settings-section-icon primary">
-                  <span class="material-icons">psychology</span>
-                </div>
-                <div>
-                  <h3 class="settings-section-title">AI Model Config</h3>
-                  <p class="settings-section-desc">Configure the neural engine for lesion classification.</p>
-                </div>
-              </div>
-
-              <div class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Model Name</label>
-                  <input type="text" id="settings-model-name" class="form-input" value="phi3">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Inference Mode</label>
-                  <select id="settings-inference" class="form-select">
-                    <option value="fp16">FP16 (High Performance)</option>
-                    <option value="fp32">FP32 (Clinical Max)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Ollama API URL</label>
-                <input type="text" id="settings-api-url" class="form-input" value="http://localhost:11434" style="font-family: monospace; color: var(--primary);">
-              </div>
-
+          <div class="card" style="margin-bottom: 2rem;">
+            <div class="card-header" style="border-bottom: 1px solid rgba(193,198,212,0.15); margin: -2rem -2rem 1.5rem -2rem; padding: 1.5rem 2rem;">
+              <h3 class="card-title">
+                <span class="material-icons">dns</span>
+                Server Configuration
+              </h3>
+            </div>
+            <div class="form-grid">
               <div class="form-group">
                 <label class="form-label">Backend API URL</label>
-                <input type="text" id="settings-backend-url" class="form-input" value="http://127.0.0.1:8000" style="font-family: monospace; color: var(--primary);">
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--surface-container);">
-                <span style="font-size: 0.75rem; color: var(--on-surface-variant);">Last model validation: <span id="last-validation">Never</span></span>
-                <button class="btn btn-primary" data-action="test-ai">
-                  Run Diagnostics
-                </button>
+                <input type="url" id="setting-backend-url" class="form-input" placeholder="http://127.0.0.1:8000">
               </div>
             </div>
-
-            <!-- Appearance -->
-            <div class="settings-section">
-              <div class="settings-section-header">
-                <div class="settings-section-icon secondary">
-                  <span class="material-icons">palette</span>
-                </div>
-                <div>
-                  <h3 class="settings-section-title">Appearance</h3>
-                </div>
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;">
-                <div>
-                  <p class="font-semibold" style="font-size: 0.875rem;">Interface Theme</p>
-                  <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Clinical white.</p>
-                </div>
-                <div style="display: flex; background: var(--surface-container); padding: 0.25rem; border-radius: 9999px;">
-                  <button class="btn btn-icon" style="background: white; border-radius: 9999px;">
-                    <span class="material-icons">light_mode</span>
-                  </button>
-                  <button class="btn btn-icon" style="border-radius: 9999px;">
-                    <span class="material-icons">dark_mode</span>
-                  </button>
-                </div>
-              </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+              <button class="btn btn-primary btn-small" data-action="save-settings">Save Settings</button>
+              <button class="btn btn-secondary btn-small" data-action="test-ai">Test Connection</button>
             </div>
           </div>
 
-          <!-- Data Management -->
-          <div class="settings-section" style="margin-top: 2rem;">
-            <div class="settings-section-header">
-              <div class="settings-section-icon" style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; background: var(--surface-container-highest); display: flex; align-items: center; justify-content: center;">
-                <span class="material-icons">database</span>
-              </div>
-              <div>
-                <h3 class="settings-section-title">Data Management</h3>
-                <p class="settings-section-desc">Manage local storage and patient data privacy.</p>
-              </div>
+          <div class="card" style="margin-bottom: 2rem;">
+            <div class="card-header" style="border-bottom: 1px solid rgba(193,198,212,0.15); margin: -2rem -2rem 1.5rem -2rem; padding: 1.5rem 2rem;">
+              <h3 class="card-title">
+                <span class="material-icons">storage</span>
+                Database & Storage Utilities
+              </h3>
             </div>
-
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-              <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                  <div style="width: 2.5rem; height: 2.5rem; background: var(--surface-container); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <span class="material-icons">logout</span>
-                  </div>
-                  <div>
-                    <p style="font-weight: 600; font-size: 0.875rem;">Sign Out</p>
-                    <p style="font-size: 0.75rem; color: var(--on-surface-variant);">End session securely.</p>
-                  </div>
-                </div>
-                <button class="btn btn-secondary btn-small" data-action="logout">Sign Out</button>
-              </div>
-              <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                  <div style="width: 2.5rem; height: 2.5rem; background: var(--surface-container); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <span class="material-icons">cleaning_services</span>
-                  </div>
-                  <div>
-                    <p style="font-weight: 600; font-size: 0.875rem;">Clear Workspace Cache</p>
-                    <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Removes temporary image data.</p>
-                  </div>
-                </div>
-                <button class="btn btn-secondary btn-small" data-action="clear-cache">Clear</button>
-              </div>
-              <div style="background: var(--surface-container-lowest); padding: 1.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(186,26,26,0.1);">
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                  <div style="width: 2.5rem; height: 2.5rem; background: var(--error-container); color: var(--on-error-container); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <span class="material-icons">delete_forever</span>
-                  </div>
-                  <div>
-                    <p style="font-weight: 600; font-size: 0.875rem; color: var(--error);">Purge Local Records</p>
-                    <p style="font-size: 0.75rem; color: var(--on-surface-variant);">Delete all cases from this machine.</p>
-                  </div>
-                </div>
-                <button class="btn btn-secondary btn-small" style="color: var(--error);" data-action="delete-all-cases">Delete All</button>
-              </div>
+            <p style="font-size: 0.8rem; color: var(--on-surface-variant); margin-bottom: 1.5rem;">Managing local patient caches and synchronization logs.</p>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-small" data-action="clear-cache">
+                <span class="material-icons" style="font-size: 1rem;">cached</span>
+                Clear Frontend Cache
+              </button>
+              <button class="btn btn-secondary btn-small text-error" data-action="delete-all-cases">
+                <span class="material-icons" style="font-size: 1rem;">delete_forever</span>
+                Wipe Local Database
+              </button>
             </div>
           </div>
 
-          <!-- About -->
-          <div style="text-align: center; padding: 3rem 0; border-top: 1px solid rgba(193,198,212,0.2); margin-top: 2rem;">
-            <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 1rem;">
-              <div style="width: 3rem; height: 3rem; background: var(--on-surface); color: white; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                <span class="material-icons" style="font-size: 1.5rem;">science</span>
-              </div>
-              <div>
-                <h4 style="font-weight: 700; color: var(--on-surface);">DermaCare AI Core</h4>
-                <p style="font-size: 0.875rem; color: var(--on-surface-variant);">Enterprise Build v1.0.0</p>
-              </div>
-              <div style="display: flex; gap: 0.75rem;">
-                <span style="padding: 0.25rem 0.75rem; background: var(--surface-container-highest); font-size: 0.625rem; font-weight: 700; color: var(--on-surface-variant); border-radius: 9999px; text-transform: uppercase;">HIPAA Compliant</span>
-                <span style="padding: 0.25rem 0.75rem; background: rgba(0,134,92,0.1); font-size: 0.625rem; font-weight: 700; color: var(--tertiary-container); border-radius: 9999px; text-transform: uppercase;">Clinical System</span>
-              </div>
-              <p style="font-size: 0.6875rem; color: var(--on-surface-variant); opacity: 0.6; max-width: 20rem; line-height: 1.6;">
-                Powered by Ollama LLM with Glass Box AI architecture. All neural weights are proprietary and encrypted.
-              </p>
+          <div class="card">
+            <div class="card-header" style="border-bottom: 1px solid rgba(193,198,212,0.15); margin: -2rem -2rem 1.5rem -2rem; padding: 1.5rem 2rem;">
+              <h3 class="card-title">
+                <span class="material-icons">logout</span>
+                Logout Session
+              </h3>
             </div>
-          </div>
-
-          <div class="footer-actions">
-            <button class="btn btn-secondary" data-action="go-dashboard">Cancel</button>
-            <button class="btn btn-primary" data-action="save-settings">
-              <span class="material-icons">save</span>
-              Save Changes
+            <p style="font-size: 0.8rem; color: var(--on-surface-variant); margin-bottom: 1.5rem;">Clears memory access tokens and cookies, returning to sign in screen.</p>
+            <button class="btn btn-secondary btn-small" data-action="logout">
+              <span class="material-icons" style="font-size: 1rem;">power_settings_new</span>
+              Log Out
             </button>
           </div>
         </section>
@@ -1040,47 +951,11 @@
       </div>
     </main>
   </div>
-  </div>
 
-  <!-- Mobile Navigation -->
-  <nav class="mobile-nav">
-    <a class="mobile-nav-item active" data-action="nav-dashboard">
-      <span class="material-icons">dashboard</span>
-      Home
-    </a>
-    <a class="mobile-nav-item" data-action="nav-new">
-      <span class="material-icons">add_circle</span>
-      New
-    </a>
-    <a class="mobile-nav-item" data-action="nav-history">
-      <span class="material-icons">history</span>
-      History
-    </a>
-    <a class="mobile-nav-item" data-action="nav-settings">
-      <span class="material-icons">settings</span>
-      Settings
-    </a>
-  </nav>
-
-  <!-- Toast Container -->
-  <div id="toast-container"></div>
-
-  <!-- Core Application Script -->
-  <script src="storage.js"></script>
-  <script src="auth.js"></script>
-  <script src="app.js"></script>
-
-  <script>
-    const headerDate = document.getElementById('header-date');
-    if (headerDate) {
-      headerDate.innerText = new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    }
-  </script>
+  <!-- External libraries and scripts -->
+  <script src="frontend/storage.js"></script>
+  <script src="frontend/auth.js"></script>
+  <script src="frontend/app.js"></script>
 </body>
 
 </html>

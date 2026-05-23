@@ -1,5 +1,6 @@
 const DEMO_MODE = true;
-window.DEMO_MODE = DEMO_MODE;
+window.DEMO_MODE = window.FORCE_LOGIN ? false : DEMO_MODE;
+
 
 class AuthManager {
   constructor() {
