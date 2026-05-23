@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <script>
-    window.location.replace('/frontend/index.html');
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+      window.location.replace('frontend/index.html');
+    }
   </script>
-  <meta http-equiv="refresh" content="0; url=/frontend/index.html">
+  <meta http-equiv="refresh" content="0; url=frontend/index.html">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DermaCare AI</title>
 </head>
