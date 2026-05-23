@@ -2412,3 +2412,33 @@ section.screen.active {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Demo Mode Styles */
+.demo-mode-banner {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: rgba(108, 92, 231, 0.08);
+  border: 1px solid rgba(108, 92, 231, 0.2);
+  color: #6c5ce7;
+  font-size: 0.8rem;
+  font-weight: 500;
+  animation: fadeIn 0.4s ease;
+}
+
+.demo-badge {
+  display: none;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6c5ce7;
+  background: rgba(108, 92, 231, 0.1);
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(108, 92, 231, 0.25);
+  animation: fadeIn 0.4s ease;
+}

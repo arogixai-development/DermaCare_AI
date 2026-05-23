@@ -153,6 +153,10 @@
             <span class="status-dot" id="status-dot"></span>
             <span id="status-text">Checking...</span>
           </div>
+          <div class="demo-badge" id="demo-badge">
+            <span class="material-icons" style="font-size: 0.875rem;">vpn_key</span>
+            <span>Demo Mode Active</span>
+          </div>
         </div>
         <div class="top-bar-right">
           <button class="btn btn-ghost btn-small" id="retry-btn" data-action="retry-connection" style="display: none;">
@@ -167,6 +171,11 @@
 
       <!-- Page Content -->
       <div class="page-content">
+        <!-- Demo Mode Banner -->
+        <div id="demo-mode-banner" class="demo-mode-banner">
+          <span class="material-icons" style="font-size: 1.1rem; color: #6c5ce7;">info</span>
+          <span>Demo Mode Enabled — Authentication Temporarily Bypassed</span>
+        </div>
 
         <!-- SCREEN: Dashboard -->
         <section id="screen-dashboard" class="screen active">

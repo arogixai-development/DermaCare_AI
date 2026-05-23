@@ -1,5 +1,8 @@
 // DermaCare AI - Main Application Controller
 
+const DEMO_MODE = true;
+window.DEMO_MODE = DEMO_MODE;
+
 class AppController {
   constructor() {
     this.currentScreen = 'screen-dashboard';
@@ -100,6 +103,38 @@ class AppController {
   initAuth() {
     const loginScreen = document.getElementById('login-screen');
     const appContainer = document.getElementById('app-container');
+    const demoBanner = document.getElementById('demo-mode-banner');
+    const demoBadge = document.getElementById('demo-badge');
+    
+    if (window.DEMO_MODE) {
+      if (demoBanner) demoBanner.style.display = 'flex';
+      if (demoBadge) demoBadge.style.display = 'flex';
+      
+      // Immediately open dashboard
+      loginScreen.style.display = 'none';
+      appContainer.style.display = 'flex';
+      
+      // Perform background silent login to acquire real JWT tokens if the backend is reachable
+      window.auth.login("arogixai@gmail.com", "Arogix9345@").then(res => {
+        if (res.success) {
+          console.log("Demo Mode: Background authentication succeeded.");
+          this.updateUserProfile();
+          this.syncOnLogin();
+        } else {
+          console.warn("Demo Mode: Backend unreachable, operating on cached/mocked session:", res.error);
+          window.auth.user = { user_id: 1, username: 'arogixai@gmail.com', is_admin: true };
+          this.updateUserProfile();
+        }
+      }).catch(err => {
+        console.warn("Demo Mode: Background auth error, running in sandbox mode:", err);
+        window.auth.user = { user_id: 1, username: 'arogixai@gmail.com', is_admin: true };
+        this.updateUserProfile();
+      });
+      return;
+    }
+    
+    if (demoBanner) demoBanner.style.display = 'none';
+    if (demoBadge) demoBadge.style.display = 'none';
     
     if (!window.auth?.isAuthenticated) {
       loginScreen.style.display = 'flex';

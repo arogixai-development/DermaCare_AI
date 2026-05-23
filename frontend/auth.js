@@ -1,7 +1,5 @@
-/**
- * Auth Module - DermaCare AI Frontend
- * JWT token management with memory storage and auto-refresh
- */
+const DEMO_MODE = true;
+window.DEMO_MODE = DEMO_MODE;
 
 class AuthManager {
   constructor() {
@@ -13,6 +11,13 @@ class AuthManager {
     this.user = null;
     this.API_BASE = this._getStoredApiBase() || 'https://cement-universe-physically-screenshots.trycloudflare.com';
     this.initFromStorage();
+    
+    if (window.DEMO_MODE) {
+      this.isAuthenticated = true;
+      this.accessToken = this.accessToken || 'demo_token';
+      this.tokenExpiry = this.tokenExpiry || (Date.now() + 365 * 24 * 60 * 60 * 1000);
+      this.user = this.user || { user_id: 1, username: 'arogixai@gmail.com', is_admin: true };
+    }
   }
 
   _getStoredApiBase() {
@@ -51,6 +56,7 @@ class AuthManager {
   }
 
   async tryAutoRefresh() {
+    if (window.DEMO_MODE) return true;
     if (!this.isAuthenticated) return false;
     
     try {
@@ -166,6 +172,11 @@ class AuthManager {
    * Get current user info
    */
   async getCurrentUser() {
+    if (window.DEMO_MODE) {
+      this.user = this.user || { user_id: 1, username: 'arogixai@gmail.com', is_admin: true };
+      this.isAuthenticated = true;
+      return this.user;
+    }
     if (!this.accessToken && !this.isAuthenticated) return null;
 
     try {
@@ -256,6 +267,9 @@ class AuthManager {
    * Check if user is authenticated
    */
   checkAuth() {
+    if (window.DEMO_MODE) {
+      return true;
+    }
     if (!this.accessToken || !this.tokenExpiry) {
       return false;
     }
