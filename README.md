@@ -14,7 +14,7 @@
 
 ---
 
-[Live MVP Client](https://dermacare-ai-inky.vercel.app) • [System Architecture](#system-architecture) • [Clinical Safety](#clinical-safety) • [Developer Setup](#-quickstart-guide)
+[Live MVP Client](https://dermacare-ai-inky.vercel.app) • [V0 Prototype Details](https://v0-dermacareai.vercel.app/) • [System Architecture](#system-architecture) • [Clinical Safety](#clinical-safety) • [Developer Setup](#-quickstart-guide)
 
 </div>
 
